@@ -68,56 +68,96 @@ docker-compose logs -f
 
 Open `http://your-vps-ip:3000` in your browser.
 
-## Domain Setup (Optional)
+## Domain Setup with SSL (Recommended)
 
-### Using Nginx Reverse Proxy
+The soundboard includes **built-in nginx and automatic Let's Encrypt SSL** support via Docker Compose. No manual nginx installation needed!
 
-**1. Install Nginx**
+### Prerequisites
+
+1. A domain name pointed to your VPS IP address
+2. Ports 80 and 443 open in your firewall
+3. Docker and Docker Compose installed
+
+### Automated SSL Setup
+
+**1. Configure your domain**
+
+Edit your `.env` file:
 ```bash
-sudo apt update
-sudo apt install nginx
+nano .env
 ```
 
-**2. Configure Nginx**
-```bash
-sudo nano /etc/nginx/sites-available/soundboard
+Add your domain and email:
+```env
+PORT=3000
+SOUNDBOARD_PASSWORD=YourSecurePasswordHere123!
+DOMAIN=soundboard.yourdomain.com
+EMAIL=your-email@example.com
 ```
 
-Add configuration:
-```nginx
-server {
-    listen 80;
-    server_name soundboard.yourdomain.com;
+**2. Run the SSL setup script**
 
-    location / {
-        proxy_pass http://localhost:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_cache_bypass $http_upgrade;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-
-        # Increase timeout for large file uploads
-        proxy_read_timeout 300;
-        proxy_connect_timeout 300;
-        proxy_send_timeout 300;
-    }
-}
+```bash
+chmod +x setup-ssl.sh
+./setup-ssl.sh
 ```
 
-**3. Enable site**
+The script will:
+- Configure nginx as a reverse proxy
+- Obtain a free SSL certificate from Let's Encrypt
+- Set up automatic certificate renewal (every 12 hours)
+- Configure HTTPS with security headers
+
+**3. Access your soundboard**
+
+Your soundboard is now available at:
+- `https://soundboard.yourdomain.com` (HTTPS - secure)
+- `http://soundboard.yourdomain.com` (HTTP - redirects to HTTPS)
+
+### Manual SSL Setup (Alternative)
+
+If you prefer manual control or the script doesn't work:
+
+**1. Start with HTTP-only configuration**
 ```bash
-sudo ln -s /etc/nginx/sites-available/soundboard /etc/nginx/sites-enabled/
-sudo nginx -t
-sudo systemctl reload nginx
+# Generate initial config
+envsubst '${DOMAIN}' < nginx/conf.d/soundboard-init.conf.template > nginx/conf.d/soundboard.conf
+
+# Start services
+docker-compose up -d soundboard nginx
 ```
 
-**4. Add SSL with Let's Encrypt**
+**2. Obtain SSL certificate**
 ```bash
-sudo apt install certbot python3-certbot-nginx
-sudo certbot --nginx -d soundboard.yourdomain.com
+docker-compose run --rm certbot certonly \
+    --webroot \
+    --webroot-path=/var/www/certbot \
+    --email your-email@example.com \
+    --agree-tos \
+    --no-eff-email \
+    -d soundboard.yourdomain.com
+```
+
+**3. Switch to HTTPS configuration**
+```bash
+# Update config to use SSL
+envsubst '${DOMAIN}' < nginx/conf.d/soundboard.conf.template > nginx/conf.d/soundboard.conf
+
+# Restart nginx
+docker-compose restart nginx
+
+# Start certbot for auto-renewal
+docker-compose up -d certbot
+```
+
+### SSL Certificate Renewal
+
+Certificates are automatically renewed every 12 hours by the certbot container. No manual intervention needed!
+
+To manually renew:
+```bash
+docker-compose run --rm certbot renew
+docker-compose restart nginx
 ```
 
 ## Preparing for a Session

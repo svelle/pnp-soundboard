@@ -4,8 +4,8 @@ services:
   soundboard:
     build: .
     container_name: dnd-soundboard
-    ports:
-      - "3000:3000"
+    expose:
+      - "3000"
     environment:
       - PORT=3000
       - SOUNDBOARD_PASSWORD=${SOUNDBOARD_PASSWORD:-change-me}
@@ -13,3 +13,34 @@ services:
       # Persist sounds directory
       - ./sounds:/app/sounds
     restart: unless-stopped
+    networks:
+      - soundboard-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: dnd-soundboard-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./certbot/www:/var/www/certbot:ro
+      - ./certbot/conf:/etc/letsencrypt:ro
+    restart: unless-stopped
+    networks:
+      - soundboard-network
+    depends_on:
+      - soundboard
+
+  certbot:
+    image: certbot/certbot:latest
+    container_name: dnd-soundboard-certbot
+    volumes:
+      - ./certbot/www:/var/www/certbot:rw
+      - ./certbot/conf:/etc/letsencrypt:rw
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+
+networks:
+  soundboard-network:
+    driver: bridge

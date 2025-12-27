@@ -21,3 +21,8 @@ sounds-backup-*.tar.gz
 # OS files
 .DS_Store
 Thumbs.db
+
+# SSL certificates and nginx configs
+certbot/
+nginx/conf.d/*.conf
+!nginx/conf.d/*.template

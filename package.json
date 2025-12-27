@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "A touch-friendly web-based soundboard for D&D sessions",
   "main": "server.js",
+  "type": "module",
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js"

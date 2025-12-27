@@ -1,13 +1,19 @@
 // Express server for D&D Soundboard
 // Supports server-side storage
 
-const express = require('express');
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs').promises;
-const fsSync = require('fs');
-const cors = require('cors');
-const { parseFile } = require('music-metadata');
+import express from 'express';
+import multer from 'multer';
+import path from 'path';
+import { promises as fs } from 'fs';
+import fsSync from 'fs';
+import cors from 'cors';
+import { parseFile } from 'music-metadata';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+// Get __dirname equivalent in ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3000;

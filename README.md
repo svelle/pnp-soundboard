@@ -84,12 +84,16 @@ docker-compose up -d
 The soundboard will be available at `http://your-vps-ip:3000`
 
 **4. Upload sounds before your session**
+- Access the URL in your browser
+- Enter credentials when prompted:
+  - Username: `admin`
+  - Password: Your SOUNDBOARD_PASSWORD from `.env`
 - Click "Upload" button
-- Enter your password when prompted
 - Upload all sound effects, music, and ambience
 - Sounds are stored on the server in the `./sounds` directory
 
-**5. Share the URL with players**
+**5. Share the URL and credentials with players**
+- Give them the URL and same credentials (username: `admin`, password from `.env`)
 - Sounds will pre-load automatically when they open the page
 - Loading indicators show which sounds are ready
 - No need to upload sounds again - they persist on the server

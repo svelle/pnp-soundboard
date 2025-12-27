@@ -33,6 +33,13 @@ fi
 echo "Domain: $DOMAIN"
 echo ""
 
+# Check if password is set
+if [ -z "$SOUNDBOARD_PASSWORD" ]; then
+    echo "Error: SOUNDBOARD_PASSWORD not set in .env file!"
+    echo "Please add: SOUNDBOARD_PASSWORD=your-password"
+    exit 1
+fi
+
 # Check if SSL certificates exist
 if [ ! -f "nginx/ssl/fullchain.pem" ] || [ ! -f "nginx/ssl/privkey.pem" ]; then
     echo "Warning: SSL certificates not found in nginx/ssl/"
@@ -48,6 +55,15 @@ if [ ! -f "nginx/ssl/fullchain.pem" ] || [ ! -f "nginx/ssl/privkey.pem" ]; then
         exit 1
     fi
 fi
+
+# Generate .htpasswd file for nginx basic auth
+echo ""
+echo "Generating password file..."
+# Using openssl to generate bcrypt hash (username: admin)
+HASHED_PASSWORD=$(openssl passwd -apr1 "$SOUNDBOARD_PASSWORD")
+echo "admin:$HASHED_PASSWORD" > nginx/.htpasswd
+chmod 644 nginx/.htpasswd
+echo "  ✓ Password file generated"
 
 # Generate nginx configuration
 echo "Step 1: Generating nginx configuration..."

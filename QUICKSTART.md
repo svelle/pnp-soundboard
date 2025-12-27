@@ -50,6 +50,12 @@ docker-compose up -d --build
 
 Visit: `https://your-domain.com`
 
+**Login credentials:**
+- Username: `admin`
+- Password: Your SOUNDBOARD_PASSWORD from `.env`
+
+**Note:** The entire site is protected with HTTP Basic Authentication via nginx. All users share the same password.
+
 ## Common Commands
 
 ```bash

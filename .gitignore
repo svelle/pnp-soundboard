@@ -28,6 +28,7 @@ nginx/ssl/*.pem
 nginx/ssl/*.key
 nginx/ssl/*.crt
 nginx/conf.d/*.conf
+nginx/.htpasswd
 !nginx/conf.d/*.template
 !nginx/ssl/README.md
 !nginx/ssl/.gitkeep

@@ -34,6 +34,10 @@ server {
     # Client max body size for file uploads (50MB)
     client_max_body_size 50M;
 
+    # HTTP Basic Authentication
+    auth_basic "D&D Soundboard - Enter Password";
+    auth_basic_user_file /etc/nginx/.htpasswd;
+
     # Proxy to soundboard app
     location / {
         proxy_pass http://soundboard:3000;

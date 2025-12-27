@@ -1,5 +1,5 @@
 // Express server for D&D Soundboard
-// Supports server-side storage and authentication
+// Supports server-side storage
 
 const express = require('express');
 const multer = require('multer');
@@ -7,11 +7,9 @@ const path = require('path');
 const fs = require('fs').promises;
 const fsSync = require('fs');
 const cors = require('cors');
-const basicAuth = require('express-basic-auth');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const SOUNDBOARD_PASSWORD = process.env.SOUNDBOARD_PASSWORD || 'change-me';
 const SOUNDS_DIR = path.join(__dirname, 'sounds');
 const METADATA_FILE = path.join(__dirname, 'sounds', 'metadata.json');
 
@@ -40,13 +38,6 @@ if (!fsSync.existsSync(METADATA_FILE)) {
 // Middleware
 app.use(cors());
 app.use(express.json());
-
-// Authentication middleware
-const authenticate = basicAuth({
-  users: { 'admin': SOUNDBOARD_PASSWORD },
-  challenge: true,
-  realm: 'D&D Soundboard'
-});
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -206,7 +197,7 @@ app.get('/api/sounds/:id/file', async (req, res) => {
 });
 
 // Upload new sound (requires authentication)
-app.post('/api/sounds', authenticate, upload.single('file'), async (req, res) => {
+app.post('/api/sounds', upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
@@ -252,8 +243,8 @@ app.post('/api/sounds', authenticate, upload.single('file'), async (req, res) =>
   }
 });
 
-// Delete sound (requires authentication)
-app.delete('/api/sounds/:id', authenticate, async (req, res) => {
+// Delete sound
+app.delete('/api/sounds/:id', async (req, res) => {
   try {
     const metadata = await loadMetadata();
     const soundIndex = metadata.sounds.findIndex(s => s.id === req.params.id);
@@ -304,8 +295,8 @@ app.get('/api/projects', async (req, res) => {
   }
 });
 
-// Create new project (requires authentication)
-app.post('/api/projects', authenticate, async (req, res) => {
+// Create new project
+app.post('/api/projects', async (req, res) => {
   try {
     const { name } = req.body;
 
@@ -339,8 +330,8 @@ app.post('/api/projects', authenticate, async (req, res) => {
   }
 });
 
-// Update project (requires authentication)
-app.put('/api/projects/:id', authenticate, async (req, res) => {
+// Update project
+app.put('/api/projects/:id', async (req, res) => {
   try {
     const { name, soundIds } = req.body;
 
@@ -369,8 +360,8 @@ app.put('/api/projects/:id', authenticate, async (req, res) => {
   }
 });
 
-// Delete project (requires authentication)
-app.delete('/api/projects/:id', authenticate, async (req, res) => {
+// Delete project
+app.delete('/api/projects/:id', async (req, res) => {
   try {
     const metadata = await loadMetadata();
 

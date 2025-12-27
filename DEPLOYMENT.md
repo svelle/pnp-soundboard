@@ -52,7 +52,10 @@ Edit `.env`:
 ```env
 PORT=3000
 SOUNDBOARD_PASSWORD=YourSecurePasswordHere123!
+DOMAIN=pnp-soundboard.yourdomain.com
 ```
+
+**Note:** The password protects the entire website via nginx HTTP Basic Authentication. You'll be prompted for username (`admin`) and password when accessing the site.
 
 ### 3. Deploy
 
@@ -151,8 +154,10 @@ For detailed SSL setup instructions, see **[SETUP-SSL.md](SETUP-SSL.md)**
 ### 1. Upload Sounds (Before Session)
 
 1. Access your soundboard URL
-2. Click "Upload" button
-3. Enter your password
+2. Enter credentials when prompted:
+   - Username: `admin`
+   - Password: Your SOUNDBOARD_PASSWORD from `.env`
+3. Click "Upload" button
 4. Upload all sounds you'll need:
    - Sound effects (sword clashes, explosions, etc.)
    - Background music (tavern, battle, exploration)
@@ -167,12 +172,17 @@ For detailed SSL setup instructions, see **[SETUP-SSL.md](SETUP-SSL.md)**
 
 ### 3. Share with Players
 
-Give players the URL: `https://soundboard.yourdomain.com`
+Give players the URL and credentials:
+- URL: `https://soundboard.yourdomain.com`
+- Username: `admin`
+- Password: Your SOUNDBOARD_PASSWORD
 
 They'll see:
 - Automatic sound pre-loading
 - All sounds ready to play
 - No uploads needed
+
+**Note:** All users share the same password and have full access to upload/delete sounds.
 
 ## Management Commands
 

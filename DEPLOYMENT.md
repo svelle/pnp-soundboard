@@ -70,15 +70,16 @@ Open `http://your-vps-ip:3000` in your browser.
 
 ## Domain Setup with SSL (Recommended)
 
-The soundboard includes **built-in nginx and automatic Let's Encrypt SSL** support via Docker Compose. No manual nginx installation needed!
+The soundboard includes **built-in nginx reverse proxy** support. You can use your own SSL certificate (e.g., wildcard certificate from your domain provider).
 
 ### Prerequisites
 
 1. A domain name pointed to your VPS IP address
-2. Ports 80 and 443 open in your firewall
-3. Docker and Docker Compose installed
+2. SSL certificate files (fullchain.pem and privkey.pem)
+3. Ports 80 and 443 open in your firewall
+4. Docker and Docker Compose installed
 
-### Automated SSL Setup
+### SSL Setup with External Certificate
 
 **1. Configure your domain**
 
@@ -87,78 +88,63 @@ Edit your `.env` file:
 nano .env
 ```
 
-Add your domain and email:
+Add your domain:
 ```env
 PORT=3000
 SOUNDBOARD_PASSWORD=YourSecurePasswordHere123!
 DOMAIN=soundboard.yourdomain.com
-EMAIL=your-email@example.com
 ```
 
-**2. Run the SSL setup script**
+**2. Copy your SSL certificates**
+
+Place your certificate files in the `nginx/ssl/` directory:
 
 ```bash
-chmod +x setup-ssl.sh
-./setup-ssl.sh
+# Copy your certificate files
+cp /path/to/fullchain.pem nginx/ssl/fullchain.pem
+cp /path/to/privkey.pem nginx/ssl/privkey.pem
+
+# Set proper permissions
+chmod 644 nginx/ssl/fullchain.pem
+chmod 600 nginx/ssl/privkey.pem
 ```
 
-The script will:
-- Configure nginx as a reverse proxy
-- Obtain a free SSL certificate from Let's Encrypt
-- Set up automatic certificate renewal (every 12 hours)
-- Configure HTTPS with security headers
+**3. Deploy with SSL**
 
-**3. Access your soundboard**
+```bash
+# Using make (recommended)
+make deploy
+
+# OR using the deploy script
+chmod +x deploy.sh
+./deploy.sh
+
+# OR manually
+export DOMAIN=soundboard.yourdomain.com
+envsubst '${DOMAIN}' < nginx/conf.d/soundboard.conf.template > nginx/conf.d/soundboard.conf
+docker-compose up -d --build
+```
+
+**4. Access your soundboard**
 
 Your soundboard is now available at:
 - `https://soundboard.yourdomain.com` (HTTPS - secure)
 - `http://soundboard.yourdomain.com` (HTTP - redirects to HTTPS)
 
-### Manual SSL Setup (Alternative)
+### Certificate Renewal
 
-If you prefer manual control or the script doesn't work:
+When your certificate provider renews your certificate:
 
-**1. Start with HTTP-only configuration**
 ```bash
-# Generate initial config
-envsubst '${DOMAIN}' < nginx/conf.d/soundboard-init.conf.template > nginx/conf.d/soundboard.conf
-
-# Start services
-docker-compose up -d soundboard nginx
-```
-
-**2. Obtain SSL certificate**
-```bash
-docker-compose run --rm certbot certonly \
-    --webroot \
-    --webroot-path=/var/www/certbot \
-    --email your-email@example.com \
-    --agree-tos \
-    --no-eff-email \
-    -d soundboard.yourdomain.com
-```
-
-**3. Switch to HTTPS configuration**
-```bash
-# Update config to use SSL
-envsubst '${DOMAIN}' < nginx/conf.d/soundboard.conf.template > nginx/conf.d/soundboard.conf
+# Copy new certificates
+cp /path/to/new/fullchain.pem nginx/ssl/fullchain.pem
+cp /path/to/new/privkey.pem nginx/ssl/privkey.pem
 
 # Restart nginx
 docker-compose restart nginx
-
-# Start certbot for auto-renewal
-docker-compose up -d certbot
 ```
 
-### SSL Certificate Renewal
-
-Certificates are automatically renewed every 12 hours by the certbot container. No manual intervention needed!
-
-To manually renew:
-```bash
-docker-compose run --rm certbot renew
-docker-compose restart nginx
-```
+For detailed SSL setup instructions, see **[SETUP-SSL.md](SETUP-SSL.md)**
 
 ## Preparing for a Session
 
@@ -190,41 +176,62 @@ They'll see:
 
 ## Management Commands
 
-### View Logs
+### Using Make (Recommended)
+
 ```bash
+# View all available commands
+make help
+
+# View logs
+make logs
+
+# Restart services
+make restart
+
+# Stop services
+make down
+
+# Deploy/redeploy
+make deploy
+
+# Backup sounds
+make backup
+
+# Restore from latest backup
+make restore
+
+# Clean generated configs
+make clean
+
+# Clean all sounds
+make clean-sounds
+```
+
+### Using Docker Compose Directly
+
+```bash
+# View logs
 docker-compose logs -f
-```
 
-### Restart Server
-```bash
+# Restart server
 docker-compose restart
-```
 
-### Stop Server
-```bash
+# Stop server
 docker-compose down
-```
 
-### Update Soundboard
-```bash
+# Update soundboard
 git pull
 docker-compose up -d --build
 ```
 
-### Backup Sounds
+### Manual Backup/Restore
+
 ```bash
 # Create backup
 tar -czf soundboard-backup-$(date +%Y%m%d).tar.gz sounds/
 
 # Restore from backup
 tar -xzf soundboard-backup-YYYYMMDD.tar.gz
-```
-
-### Clear All Sounds
-```bash
-rm -rf sounds/*
-# Recreate metadata file
-docker-compose restart
 ```
 
 ## Security Best Practices

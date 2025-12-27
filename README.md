@@ -9,6 +9,7 @@ A touch-friendly web-based soundboard for Dungeons & Dragons sessions. Play soun
 - 🔊 **Sound Effects** - Quick one-shot sounds (sword clashes, explosions, etc.)
 - 🎵 **Background Music** - Loopable music tracks for different moods
 - 🌊 **Ambience** - Environmental loops (rain, ocean, forest, etc.)
+- 📁 **Projects** - Organize sounds into different campaigns/sessions
 - 🎚️ **Individual Volume Controls** - Adjust each sound independently
 - 🔄 **Layered Playback** - Play multiple sounds simultaneously
 - ⏸️ **Pause/Resume** - Pause and resume playback with position memory
@@ -166,16 +167,24 @@ Supported formats: MP3, WAV, OGG (recommended)
   - Pauses when track is paused, resets when stopped
   - Works with looping tracks
 
-### 3. Master Controls
+### 3. Organize with Projects
+
+- **Project Dropdown** - Select which project/campaign to view
+- **All Projects** - View all sounds across all projects
+- **Manage Projects** - Create, rename, and delete projects via ⚙️ button
+- **Multi-Project Sounds** - Assign sounds to multiple projects when uploading
+- **Auto-Stop on Switch** - All sounds stop when switching projects
+
+### 4. Master Controls
 
 - **Master Volume** - Controls overall volume for all sounds
 - **⏹️ Stop All** - Stops all currently playing sounds
 
-### 4. Delete Sounds
+### 5. Delete Sounds
 
 Click the **🗑️** button on any sound card to delete it (requires confirmation)
 
-### 5. Keyboard Shortcuts
+### 6. Keyboard Shortcuts
 
 - **U** - Open upload modal
 - **Space/Enter** - Stop all sounds
@@ -205,12 +214,14 @@ dnd-soundboard/
 │   │   └── AudioManager.js    # Audio coordination
 │   ├── storage/
 │   │   ├── IndexedDBManager.js  # Database operations
-│   │   └── SoundLibrary.js      # Sound CRUD
+│   │   ├── SoundLibrary.js      # Sound CRUD (local)
+│   │   └── ServerStorage.js     # Sound CRUD (server)
 │   ├── ui/
 │   │   ├── UIController.js      # UI coordinator
 │   │   ├── SoundBoard.js        # Sound grid
 │   │   ├── UploadManager.js     # Upload handling
-│   │   └── VolumeControls.js    # Volume sliders
+│   │   ├── VolumeControls.js    # Volume sliders
+│   │   └── ProjectManager.js    # Project management
 │   └── utils/
 │       ├── constants.js         # App constants
 │       └── helpers.js           # Utility functions

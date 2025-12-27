@@ -2,20 +2,15 @@
 
 This directory contains nginx configuration templates for the D&D Soundboard.
 
-## Templates
-
-### `soundboard-init.conf.template`
-- Used for initial setup before SSL certificates are obtained
-- HTTP-only configuration
-- Allows Let's Encrypt to verify domain ownership
-- Proxies all traffic to the soundboard app
+## Template
 
 ### `soundboard.conf.template`
 - Full production configuration with SSL
 - HTTP redirects to HTTPS
-- HTTPS with Let's Encrypt certificates
-- Security headers enabled
-- Used after SSL certificates are obtained
+- HTTPS with external SSL certificates (from `nginx/ssl/`)
+- Security headers enabled (HSTS, X-Frame-Options, etc.)
+- Proxies all traffic to the soundboard app on port 3000
+- Supports file uploads up to 50MB
 
 ## Usage
 
@@ -26,13 +21,26 @@ These templates use environment variable substitution with `envsubst`:
 envsubst '${DOMAIN}' < soundboard.conf.template > soundboard.conf
 ```
 
-The `setup-ssl.sh` script automatically handles this for you.
+The `deploy.sh` script automatically handles this for you.
+
+Alternatively, use:
+```bash
+make deploy
+```
 
 ## Configuration Variables
 
 - `${DOMAIN}` - Your domain name (e.g., soundboard.example.com)
 
-Set these in your `.env` file.
+Set this in your `.env` file.
+
+## SSL Certificates
+
+Place your SSL certificate files in the `nginx/ssl/` directory:
+- `fullchain.pem` - Your full certificate chain
+- `privkey.pem` - Your private key
+
+See [nginx/ssl/README.md](ssl/README.md) for details.
 
 ## Generated Files
 

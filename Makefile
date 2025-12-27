@@ -1,10 +1,11 @@
-.PHONY: help clean clean-ssl clean-sounds clean-all build up down restart logs ssl-setup ssl-renew backup restore status
+.PHONY: help clean clean-sounds clean-all build up down restart logs deploy backup restore status
 
 help:
 	@echo "DnD Soundboard - Available Commands"
 	@echo "===================================="
 	@echo ""
 	@echo "Development & Deployment:"
+	@echo "  make deploy        - Deploy with SSL (recommended)"
 	@echo "  make build         - Build Docker images"
 	@echo "  make up            - Start all services"
 	@echo "  make down          - Stop all services"
@@ -12,18 +13,14 @@ help:
 	@echo "  make logs          - View logs (use Ctrl+C to exit)"
 	@echo "  make status        - Show running containers"
 	@echo ""
-	@echo "SSL & Certificates:"
-	@echo "  make ssl-setup     - Set up SSL certificates (first time)"
-	@echo "  make ssl-renew     - Manually renew SSL certificates"
-	@echo ""
 	@echo "Data Management:"
 	@echo "  make backup        - Backup sounds directory"
 	@echo "  make restore       - Restore sounds from latest backup"
 	@echo ""
 	@echo "Cleanup:"
-	@echo "  make clean         - Remove SSL certificates and generated configs"
+	@echo "  make clean         - Remove generated nginx configs"
 	@echo "  make clean-sounds  - Remove all uploaded sounds"
-	@echo "  make clean-all     - Remove everything (SSL, sounds, Docker volumes)"
+	@echo "  make clean-all     - Remove everything (configs, sounds, Docker volumes)"
 	@echo ""
 
 # Build Docker images
@@ -50,20 +47,15 @@ logs:
 status:
 	docker-compose ps
 
-# SSL setup (first time)
-ssl-setup:
+# Deploy with SSL configuration
+deploy:
 	@if [ ! -f .env ]; then \
 		echo "Error: .env file not found!"; \
-		echo "Copy .env.example to .env and configure DOMAIN and EMAIL"; \
+		echo "Copy .env.example to .env and configure DOMAIN"; \
 		exit 1; \
 	fi
-	@chmod +x setup-ssl.sh
-	@./setup-ssl.sh
-
-# Manually renew SSL certificates
-ssl-renew:
-	docker-compose run --rm certbot renew
-	docker-compose restart nginx
+	@chmod +x deploy.sh
+	@./deploy.sh
 
 # Backup sounds directory
 backup:
@@ -85,14 +77,12 @@ restore:
 	docker-compose restart soundboard; \
 	echo "Restore complete!"
 
-# Clean SSL certificates and generated nginx configs
+# Clean generated nginx configs
 clean:
-	@echo "Cleaning SSL certificates and nginx configs..."
-	rm -rf certbot/conf/*
-	rm -rf certbot/www/*
+	@echo "Cleaning generated nginx configs..."
 	rm -f nginx/conf.d/*.conf
-	@echo "Clean complete! SSL certificates and configs removed."
-	@echo "Run 'make ssl-setup' to set up SSL again."
+	@echo "Clean complete! Generated configs removed."
+	@echo "Run 'make deploy' to regenerate and deploy."
 
 # Clean uploaded sounds
 clean-sounds:
@@ -103,13 +93,11 @@ clean-sounds:
 	docker-compose restart soundboard
 	@echo "All sounds deleted."
 
-# Clean everything (SSL, sounds, Docker volumes)
+# Clean everything (configs, sounds, Docker volumes)
 clean-all: down
-	@echo "WARNING: This will delete EVERYTHING (SSL, sounds, Docker volumes)!"
+	@echo "WARNING: This will delete EVERYTHING (configs, sounds, Docker volumes)!"
 	@echo "Press Ctrl+C to cancel, or Enter to continue..."
 	@read -r confirm
-	rm -rf certbot/conf/*
-	rm -rf certbot/www/*
 	rm -f nginx/conf.d/*.conf
 	rm -rf sounds/*
 	docker-compose down -v

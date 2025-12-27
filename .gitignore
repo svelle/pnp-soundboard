@@ -24,5 +24,10 @@ Thumbs.db
 
 # SSL certificates and nginx configs
 certbot/
+nginx/ssl/*.pem
+nginx/ssl/*.key
+nginx/ssl/*.crt
 nginx/conf.d/*.conf
 !nginx/conf.d/*.template
+!nginx/ssl/README.md
+!nginx/ssl/.gitkeep

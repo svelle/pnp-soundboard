@@ -18,6 +18,8 @@ export class AudioManager {
    * @param {Object} options - Playback options
    * @param {boolean} options.loop - Whether to loop the sound
    * @param {number} options.volume - Initial volume (0-1)
+   * @param {number} options.pauseMin - Minimum pause between loops in seconds (optional)
+   * @param {number} options.pauseMax - Maximum pause between loops in seconds (optional)
    * @returns {Promise<string>} Track ID
    */
   async playSound(soundId, options = {}) {
@@ -28,29 +30,48 @@ export class AudioManager {
       // Get sound from library (includes decoded AudioBuffer)
       const sound = await this.soundLibrary.getSound(soundId);
 
+      const trackId = generateUUID();
+      const shouldLoop = options.loop || false;
+      const hasPauseInterval = shouldLoop && options.pauseMin !== undefined && options.pauseMax !== undefined;
+
+      // If looping with pause intervals, disable native loop and handle manually
+      const useNativeLoop = shouldLoop && !hasPauseInterval;
+
       // Create track
       const track = this.audioMixer.createTrack(sound.audioBuffer, {
-        loop: options.loop || false,
+        loop: useNativeLoop,
         volume: options.volume !== undefined ? options.volume : DEFAULT_VOLUME
       });
 
-      // Generate track ID
-      const trackId = generateUUID();
-
-      // Setup cleanup when track ends (for non-looping sounds)
-      track.onEnded(() => {
-        this.activeTracks.delete(trackId);
-      });
-
-      // Store active track
-      this.activeTracks.set(trackId, {
+      // Store active track info
+      const trackInfo = {
         track: track,
         soundId: soundId,
+        audioBuffer: sound.audioBuffer,
+        loopSettings: {
+          enabled: shouldLoop,
+          pauseMin: options.pauseMin,
+          pauseMax: options.pauseMax,
+          hasPauseInterval: hasPauseInterval
+        },
         metadata: {
           name: sound.name,
           category: sound.category,
           emoji: sound.emoji,
           startedAt: new Date().toISOString()
+        }
+      };
+
+      this.activeTracks.set(trackId, trackInfo);
+
+      // Setup cleanup/restart when track ends
+      track.onEnded(() => {
+        if (hasPauseInterval && this.activeTracks.has(trackId)) {
+          // Schedule restart after random pause
+          this._scheduleLoopRestart(trackId, sound.audioBuffer, options);
+        } else if (!useNativeLoop) {
+          // Clean up non-looping tracks
+          this.activeTracks.delete(trackId);
         }
       });
 
@@ -64,6 +85,56 @@ export class AudioManager {
   }
 
   /**
+   * Schedule a loop restart after random pause interval
+   * @private
+   * @param {string} trackId - Track ID
+   * @param {AudioBuffer} audioBuffer - Audio buffer to play
+   * @param {Object} options - Original playback options
+   */
+  async _scheduleLoopRestart(trackId, audioBuffer, options) {
+    const trackInfo = this.activeTracks.get(trackId);
+    if (!trackInfo) return;
+
+    // Calculate random pause duration
+    const pauseMin = options.pauseMin || 0;
+    const pauseMax = options.pauseMax || 0;
+    const pauseDuration = pauseMin + Math.random() * (pauseMax - pauseMin);
+
+    // Store timeout reference for cleanup
+    trackInfo.pauseTimeout = setTimeout(async () => {
+      // Check if track was stopped during pause
+      if (!this.activeTracks.has(trackId)) return;
+
+      try {
+        await this.audioMixer.resume();
+
+        // Create new source (AudioBufferSourceNode can only be used once)
+        const newTrack = this.audioMixer.createTrack(audioBuffer, {
+          loop: false, // We handle looping manually
+          volume: trackInfo.track.getVolume()
+        });
+
+        // Update track reference
+        trackInfo.track = newTrack;
+
+        // Setup ended callback for next iteration
+        newTrack.onEnded(() => {
+          if (this.activeTracks.has(trackId)) {
+            this._scheduleLoopRestart(trackId, audioBuffer, options);
+          }
+        });
+
+        // Play
+        newTrack.play();
+
+      } catch (error) {
+        console.error('Error restarting loop:', error);
+        this.activeTracks.delete(trackId);
+      }
+    }, pauseDuration * 1000);
+  }
+
+  /**
    * Stop a specific track
    * @param {string} trackId - ID of the track to stop
    */
@@ -71,6 +142,11 @@ export class AudioManager {
     const activeTrack = this.activeTracks.get(trackId);
 
     if (activeTrack) {
+      // Clear any pending pause timeout
+      if (activeTrack.pauseTimeout) {
+        clearTimeout(activeTrack.pauseTimeout);
+      }
+
       activeTrack.track.stop();
       this.activeTracks.delete(trackId);
     }

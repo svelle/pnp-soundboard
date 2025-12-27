@@ -142,6 +142,12 @@ export class SoundBoard {
     loopBtn.innerHTML = '🔁';
     loopBtn.title = 'Loop';
 
+    // Random pause button (for music and ambience)
+    const pauseBtn = document.createElement('button');
+    pauseBtn.className = 'btn btn-secondary pause-btn';
+    pauseBtn.innerHTML = '⏸️';
+    pauseBtn.title = 'Random pauses between loops';
+
     // Delete button
     const deleteBtn = document.createElement('button');
     deleteBtn.className = 'btn btn-danger delete-btn';
@@ -152,10 +158,58 @@ export class SoundBoard {
     buttons.appendChild(playBtn);
     if (sound.category === CATEGORIES.MUSIC || sound.category === CATEGORIES.AMBIENCE) {
       buttons.appendChild(loopBtn);
+      buttons.appendChild(pauseBtn);
     }
     buttons.appendChild(deleteBtn);
 
     controls.appendChild(buttons);
+
+    // Pause interval controls (hidden by default)
+    if (sound.category === CATEGORIES.MUSIC || sound.category === CATEGORIES.AMBIENCE) {
+      const pauseControls = document.createElement('div');
+      pauseControls.className = 'pause-controls hidden mt-2';
+
+      const pauseLabel = document.createElement('div');
+      pauseLabel.className = 'text-xs text-gray-400 mb-1';
+      pauseLabel.textContent = 'Pause interval (seconds):';
+
+      const pauseInputs = document.createElement('div');
+      pauseInputs.className = 'flex gap-2 items-center text-xs';
+
+      const minInput = document.createElement('input');
+      minInput.type = 'number';
+      minInput.min = '0';
+      minInput.max = '60';
+      minInput.value = '5';
+      minInput.className = 'w-12 px-1 py-1 bg-gray-700 border border-gray-600 rounded text-center';
+      minInput.placeholder = 'Min';
+
+      const separator = document.createElement('span');
+      separator.textContent = '-';
+      separator.className = 'text-gray-500';
+
+      const maxInput = document.createElement('input');
+      maxInput.type = 'number';
+      maxInput.min = '0';
+      maxInput.max = '120';
+      maxInput.value = '15';
+      maxInput.className = 'w-12 px-1 py-1 bg-gray-700 border border-gray-600 rounded text-center';
+      maxInput.placeholder = 'Max';
+
+      pauseInputs.appendChild(minInput);
+      pauseInputs.appendChild(separator);
+      pauseInputs.appendChild(maxInput);
+
+      pauseControls.appendChild(pauseLabel);
+      pauseControls.appendChild(pauseInputs);
+
+      controls.appendChild(pauseControls);
+
+      // Store references
+      card.pauseControls = pauseControls;
+      card.pauseMinInput = minInput;
+      card.pauseMaxInput = maxInput;
+    }
 
     // Assemble card
     card.appendChild(emoji);
@@ -168,13 +222,35 @@ export class SoundBoard {
     // Event listeners
     playBtn.addEventListener('click', (e) => {
       e.stopPropagation();
-      this.togglePlay(sound.id, card, playBtn, loopBtn);
+      const pauseBtn = card.querySelector('.pause-btn');
+      this.togglePlay(sound.id, card, playBtn, loopBtn, pauseBtn);
     });
 
-    loopBtn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      loopBtn.classList.toggle('active');
-    });
+    if (sound.category === CATEGORIES.MUSIC || sound.category === CATEGORIES.AMBIENCE) {
+      loopBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        loopBtn.classList.toggle('active');
+      });
+
+      pauseBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        pauseBtn.classList.toggle('active');
+        // Show/hide pause interval inputs
+        if (card.pauseControls) {
+          card.pauseControls.classList.toggle('hidden');
+        }
+      });
+
+      // Prevent input events from bubbling
+      if (card.pauseMinInput) {
+        card.pauseMinInput.addEventListener('click', (e) => e.stopPropagation());
+        card.pauseMinInput.addEventListener('input', (e) => e.stopPropagation());
+      }
+      if (card.pauseMaxInput) {
+        card.pauseMaxInput.addEventListener('click', (e) => e.stopPropagation());
+        card.pauseMaxInput.addEventListener('input', (e) => e.stopPropagation());
+      }
+    }
 
     deleteBtn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -190,8 +266,9 @@ export class SoundBoard {
    * @param {HTMLElement} card - Sound card element
    * @param {HTMLElement} playBtn - Play button element
    * @param {HTMLElement} loopBtn - Loop button element
+   * @param {HTMLElement} pauseBtn - Pause interval button element
    */
-  async togglePlay(soundId, card, playBtn, loopBtn) {
+  async togglePlay(soundId, card, playBtn, loopBtn, pauseBtn) {
     try {
       const isPlaying = this.playingSounds.has(soundId);
 
@@ -204,11 +281,24 @@ export class SoundBoard {
       } else {
         // Play sound
         const shouldLoop = loopBtn && loopBtn.classList.contains('active');
+        const usePauseInterval = pauseBtn && pauseBtn.classList.contains('active');
 
-        const trackId = await this.audioManager.playSound(soundId, {
+        const options = {
           loop: shouldLoop,
           volume: 0.8
-        });
+        };
+
+        // Add pause interval settings if enabled
+        if (usePauseInterval && card.pauseMinInput && card.pauseMaxInput) {
+          const pauseMin = parseFloat(card.pauseMinInput.value) || 5;
+          const pauseMax = parseFloat(card.pauseMaxInput.value) || 15;
+
+          // Ensure min <= max
+          options.pauseMin = Math.min(pauseMin, pauseMax);
+          options.pauseMax = Math.max(pauseMin, pauseMax);
+        }
+
+        const trackId = await this.audioManager.playSound(soundId, options);
 
         // Track playing sound
         if (!this.playingSounds.has(soundId)) {

@@ -2,6 +2,8 @@
 
 A touch-friendly web-based soundboard for Dungeons & Dragons sessions. Play sound effects, background music, and ambient loops with individual volume controls and layered playback.
 
+🌐 **Live Demo:** [https://svelle.github.io/pnp-soundboard/](https://svelle.github.io/pnp-soundboard/)
+
 ## ✨ Features
 
 - 🔊 **Sound Effects** - Quick one-shot sounds (sword clashes, explosions, etc.)
@@ -9,9 +11,11 @@ A touch-friendly web-based soundboard for Dungeons & Dragons sessions. Play soun
 - 🌊 **Ambience** - Environmental loops (rain, ocean, forest, etc.)
 - 🎚️ **Individual Volume Controls** - Adjust each sound independently
 - 🔄 **Layered Playback** - Play multiple sounds simultaneously
+- ⏸️ **Random Pause Intervals** - Add natural variety with random pauses between loops
 - 📱 **Touch-Friendly** - Optimized for iPad and MacBook
 - 💾 **Browser Storage** - Sounds persist in your browser (IndexedDB)
 - 🎨 **Custom Emojis** - Personalize each sound with emojis
+- 📦 **Large File Support** - Upload files up to 100MB
 
 ## 🚀 Getting Started
 
@@ -54,6 +58,9 @@ Then open your browser to `http://localhost:8000`
 - **Tap/Click** the ▶️ button to play
 - **Tap/Click** again (⏹️) to stop
 - Use the **🔁 Loop** button on Music/Ambience to enable looping
+- Use the **⏸️ Pause** button to add random pauses between loops (more variety!)
+  - When enabled, set min/max pause duration in seconds
+  - Great for creating natural ambient soundscapes
 - Adjust the **volume slider** on each card
 
 ### 3. Master Controls
@@ -135,8 +142,8 @@ dnd-soundboard/
 - **M4A/AAC** - Safari
 
 ### File Size Limits
-- Maximum: 50MB per file
-- IndexedDB quota: ~50-100MB+ (varies by browser)
+- Maximum: 100MB per file
+- IndexedDB quota: ~50-100MB+ (varies by browser, can be several GB)
 
 ## 📱 Mobile Optimization
 
@@ -158,7 +165,7 @@ export const DEFAULT_MASTER_VOLUME = 0.8; // 80%
 ### Changing File Size Limit
 Edit `js/utils/constants.js`:
 ```javascript
-export const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+export const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB
 ```
 
 ### Adding More Categories
@@ -172,7 +179,7 @@ Edit `js/utils/constants.js` and add corresponding sections to `index.html`
 - Web Audio API requires user interaction on iOS/Android
 
 ### Upload fails?
-- Check file size (<50MB)
+- Check file size (<100MB)
 - Ensure file format is supported (MP3, WAV, OGG)
 - Check browser console for errors
 
@@ -200,6 +207,7 @@ Edit `js/utils/constants.js` and add corresponding sections to `index.html`
 - [ ] Search/filter sounds
 - [ ] Sound duration progress bar
 - [ ] Mobile app (PWA)
+- [ ] Save pause interval settings per sound
 
 ## 📄 License
 

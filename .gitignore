@@ -1,1 +1,23 @@
 .claude/
+
+# Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Environment variables
+.env
+
+# Uploaded sounds
+sounds/
+*.mp3
+*.wav
+*.ogg
+*.m4a
+
+# Backups
+sounds-backup-*.tar.gz
+
+# OS files
+.DS_Store
+Thumbs.db

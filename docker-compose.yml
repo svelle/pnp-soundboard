@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  soundboard:
+    build: .
+    container_name: dnd-soundboard
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - SOUNDBOARD_PASSWORD=${SOUNDBOARD_PASSWORD:-change-me}
+    volumes:
+      # Persist sounds directory
+      - ./sounds:/app/sounds
+    restart: unless-stopped

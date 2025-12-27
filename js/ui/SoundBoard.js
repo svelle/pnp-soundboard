@@ -720,4 +720,62 @@ export class SoundBoard {
       card.style.transform = 'scale(1)';
     }, 10);
   }
+
+  /**
+   * Update loading status for a sound card (server mode pre-loading)
+   * @param {string} soundId - Sound ID
+   * @param {string} status - 'loading', 'ready', or 'error'
+   * @param {number} progress - Progress from 0 to 1
+   */
+  updateLoadingStatus(soundId, status, progress) {
+    const card = document.querySelector(`[data-sound-id="${soundId}"]`);
+    if (!card) return;
+
+    // Get or create loading overlay
+    let loadingOverlay = card.querySelector('.loading-overlay');
+
+    if (!loadingOverlay) {
+      loadingOverlay = document.createElement('div');
+      loadingOverlay.className = 'loading-overlay';
+      loadingOverlay.innerHTML = `
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Loading...</div>
+        <div class="loading-progress-bar">
+          <div class="loading-progress-fill"></div>
+        </div>
+      `;
+      card.appendChild(loadingOverlay);
+    }
+
+    const progressBar = loadingOverlay.querySelector('.loading-progress-fill');
+    const loadingText = loadingOverlay.querySelector('.loading-text');
+
+    if (status === 'loading') {
+      loadingOverlay.classList.remove('hidden');
+      if (progressBar) {
+        progressBar.style.width = `${progress * 100}%`;
+      }
+      if (loadingText) {
+        loadingText.textContent = `Loading ${Math.round(progress * 100)}%`;
+      }
+    } else if (status === 'ready') {
+      if (progressBar) {
+        progressBar.style.width = '100%';
+      }
+      if (loadingText) {
+        loadingText.textContent = 'Ready!';
+      }
+
+      // Remove overlay after brief delay
+      setTimeout(() => {
+        loadingOverlay.remove();
+      }, 500);
+    } else if (status === 'error') {
+      if (loadingText) {
+        loadingText.textContent = 'Error';
+        loadingText.style.color = '#ef4444';
+      }
+      loadingOverlay.classList.add('error');
+    }
+  }
 }

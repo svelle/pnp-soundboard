@@ -5,10 +5,12 @@ import { VolumeControls } from './VolumeControls.js';
 import { SoundBoard } from './SoundBoard.js';
 
 export class UIController {
-  constructor(audioMixer, audioManager, soundLibrary) {
+  constructor(audioMixer, audioManager, soundLibrary, mode = 'local', passwordHandler = null) {
     this.audioMixer = audioMixer;
     this.audioManager = audioManager;
     this.soundLibrary = soundLibrary;
+    this.mode = mode;
+    this.passwordHandler = passwordHandler;
 
     // Initialize UI components
     this.volumeControls = new VolumeControls(this.audioMixer);
@@ -21,7 +23,9 @@ export class UIController {
 
     this.uploadManager = new UploadManager(
       this.soundLibrary,
-      (sound) => this.handleUploadComplete(sound)
+      (sound) => this.handleUploadComplete(sound),
+      this.mode,
+      this.passwordHandler
     );
   }
 

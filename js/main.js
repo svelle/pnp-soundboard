@@ -2,19 +2,48 @@
 
 import { IndexedDBManager } from './storage/IndexedDBManager.js';
 import { SoundLibrary } from './storage/SoundLibrary.js';
+import { ServerStorage } from './storage/ServerStorage.js';
 import { AudioMixer } from './audio/AudioMixer.js';
 import { AudioManager } from './audio/AudioManager.js';
 import { UIController } from './ui/UIController.js';
 
 class DnDSoundboard {
   constructor() {
+    this.mode = 'local'; // 'local' or 'server'
     this.dbManager = null;
     this.soundLibrary = null;
     this.audioMixer = null;
     this.audioManager = null;
     this.uiController = null;
+    this.preloadedSounds = null;
 
     this.initialized = false;
+  }
+
+  /**
+   * Detect if running in server mode
+   */
+  async detectMode() {
+    try {
+      const response = await fetch('/api/mode', { method: 'GET' });
+      if (response.ok) {
+        const data = await response.json();
+        return data.mode || 'local';
+      }
+    } catch (error) {
+      // API not available, assume local mode
+    }
+    return 'local';
+  }
+
+  /**
+   * Prompt for password (server mode only)
+   */
+  async promptForPassword() {
+    return new Promise((resolve) => {
+      const password = prompt('Enter soundboard password for uploading/deleting sounds:');
+      resolve(password);
+    });
   }
 
   /**
@@ -24,33 +53,41 @@ class DnDSoundboard {
     try {
       console.log('🎲 Initializing D&D Soundboard...');
 
-      // Step 1: Initialize IndexedDB
-      console.log('📦 Initializing database...');
-      this.dbManager = new IndexedDBManager();
-      await this.dbManager.init();
+      // Detect mode
+      this.mode = await this.detectMode();
+      console.log(`📡 Mode: ${this.mode}`);
 
-      // Step 2: Initialize Audio Mixer (Web Audio API)
+      // Step 1: Initialize Audio Mixer (Web Audio API)
       console.log('🔊 Initializing audio system...');
       this.audioMixer = new AudioMixer();
 
-      // Note: We don't initialize the AudioContext yet - it must be initialized
-      // after user interaction on mobile browsers
+      // Step 2: Initialize storage based on mode
+      if (this.mode === 'server') {
+        console.log('📦 Initializing server storage...');
+        this.soundLibrary = new ServerStorage(null);
+        // We'll set the audioContext later after user interaction
+      } else {
+        console.log('📦 Initializing local database...');
+        this.dbManager = new IndexedDBManager();
+        await this.dbManager.init();
 
-      // Step 3: Initialize Sound Library
-      console.log('🎵 Initializing sound library...');
-      this.soundLibrary = new SoundLibrary(this.dbManager, null);
-      // We'll set the audioContext later after user interaction
+        console.log('🎵 Initializing sound library...');
+        this.soundLibrary = new SoundLibrary(this.dbManager, null);
+        // We'll set the audioContext later after user interaction
+      }
 
-      // Step 4: Initialize Audio Manager
+      // Step 3: Initialize Audio Manager
       console.log('🎛️ Initializing audio manager...');
       this.audioManager = new AudioManager(this.audioMixer, this.soundLibrary);
 
-      // Step 5: Initialize UI Controller
+      // Step 4: Initialize UI Controller
       console.log('🎨 Initializing UI...');
       this.uiController = new UIController(
         this.audioMixer,
         this.audioManager,
-        this.soundLibrary
+        this.soundLibrary,
+        this.mode,
+        () => this.promptForPassword()
       );
 
       // Setup user interaction handler for mobile
@@ -59,12 +96,49 @@ class DnDSoundboard {
       // Initialize UI (load sounds, etc.)
       await this.uiController.init();
 
+      // Step 5: Pre-load sounds in server mode
+      if (this.mode === 'server') {
+        console.log('📥 Pre-loading sounds...');
+        await this.preloadSounds();
+      }
+
       this.initialized = true;
       console.log('✅ D&D Soundboard initialized successfully!');
 
     } catch (error) {
       console.error('❌ Failed to initialize D&D Soundboard:', error);
       this.showErrorMessage(error);
+    }
+  }
+
+  /**
+   * Pre-load sounds from server
+   */
+  async preloadSounds() {
+    if (this.mode !== 'server' || !this.soundLibrary.preloadAllSounds) {
+      return;
+    }
+
+    try {
+      // Initialize AudioContext first (required for decoding)
+      if (!this.audioMixer.initialized) {
+        this.audioMixer.init();
+        this.soundLibrary.audioContext = this.audioMixer.context;
+      }
+
+      // Pre-load with progress callbacks
+      this.preloadedSounds = await this.soundLibrary.preloadAllSounds(
+        (soundId, status, progress) => {
+          // Notify UI of loading progress
+          if (this.uiController && this.uiController.soundBoard) {
+            this.uiController.soundBoard.updateLoadingStatus(soundId, status, progress);
+          }
+        }
+      );
+
+      console.log(`✅ Pre-loaded ${this.preloadedSounds.size} sounds`);
+    } catch (error) {
+      console.error('Error pre-loading sounds:', error);
     }
   }
 

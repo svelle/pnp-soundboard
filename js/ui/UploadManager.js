@@ -4,9 +4,11 @@ import { CATEGORIES, SUPPORTED_AUDIO_FORMATS, MAX_FILE_SIZE } from '../utils/con
 import { formatFileSize } from '../utils/helpers.js';
 
 export class UploadManager {
-  constructor(soundLibrary, onUploadComplete) {
+  constructor(soundLibrary, onUploadComplete, mode = 'local', passwordHandler = null) {
     this.soundLibrary = soundLibrary;
     this.onUploadComplete = onUploadComplete;
+    this.mode = mode;
+    this.passwordHandler = passwordHandler;
 
     this.modal = document.getElementById('uploadModal');
     this.uploadBtn = document.getElementById('uploadBtn');
@@ -18,8 +20,11 @@ export class UploadManager {
     this.uploadProgress = document.getElementById('uploadProgress');
     this.uploadProgressBar = document.getElementById('uploadProgressBar');
     this.uploadError = document.getElementById('uploadError');
+    this.dropZone = document.getElementById('dropZone');
+    this.selectedFileName = document.getElementById('selectedFileName');
 
     this.selectedCategory = CATEGORIES.SFX;
+    this.authConfigured = false;
 
     this.init();
   }
@@ -65,12 +70,11 @@ export class UploadManager {
 
     // File input change
     this.fileInput.addEventListener('change', () => {
-      // Auto-populate name from filename
-      if (this.fileInput.files.length > 0 && !this.nameInput.value) {
-        const filename = this.fileInput.files[0].name;
-        this.nameInput.value = filename.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' ');
-      }
+      this.handleFileSelect();
     });
+
+    // Drag and drop events
+    this.setupDragAndDrop();
 
     // Confirm upload
     this.confirmUploadBtn.addEventListener('click', () => {
@@ -99,6 +103,7 @@ export class UploadManager {
     this.fileInput.value = '';
     this.nameInput.value = '';
     this.emojiInput.value = '';
+    this.selectedFileName.classList.add('hidden');
     this.uploadProgress.classList.add('hidden');
     this.uploadError.classList.add('hidden');
     this.uploadProgressBar.style.width = '0%';
@@ -113,8 +118,89 @@ export class UploadManager {
     this.uploadError.classList.add('hidden');
   }
 
+  setupDragAndDrop() {
+    // Prevent default drag behaviors on the entire document
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+      this.dropZone.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      }, false);
+    });
+
+    // Highlight drop zone when dragging over it
+    ['dragenter', 'dragover'].forEach(eventName => {
+      this.dropZone.addEventListener(eventName, () => {
+        this.dropZone.classList.add('drag-over');
+      }, false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+      this.dropZone.addEventListener(eventName, () => {
+        this.dropZone.classList.remove('drag-over');
+      }, false);
+    });
+
+    // Handle dropped files
+    this.dropZone.addEventListener('drop', (e) => {
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        // Use DataTransfer to set files on the hidden input
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(files[0]);
+        this.fileInput.files = dataTransfer.files;
+
+        // Trigger file select handler
+        this.handleFileSelect();
+      }
+    }, false);
+
+    // Make the drop zone clickable to trigger file input
+    this.dropZone.addEventListener('click', (e) => {
+      // Don't trigger if clicking the label (which already triggers the input)
+      if (e.target.tagName !== 'LABEL') {
+        this.fileInput.click();
+      }
+    });
+  }
+
+  handleFileSelect() {
+    // Auto-populate name from filename and show selected file
+    if (this.fileInput.files.length > 0) {
+      const filename = this.fileInput.files[0].name;
+
+      // Auto-populate name if empty
+      if (!this.nameInput.value) {
+        this.nameInput.value = filename.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' ');
+      }
+
+      // Show selected filename
+      this.selectedFileName.textContent = `Selected: ${filename}`;
+      this.selectedFileName.classList.remove('hidden');
+    } else {
+      this.selectedFileName.classList.add('hidden');
+    }
+  }
+
   async handleUpload() {
     this.hideError();
+
+    // Configure authentication for server mode
+    if (this.mode === 'server' && !this.authConfigured) {
+      if (this.passwordHandler && this.soundLibrary.setAuth) {
+        try {
+          const password = await this.passwordHandler();
+          if (!password) {
+            this.showError('Password required for uploading');
+            return;
+          }
+          this.soundLibrary.setAuth('admin', password);
+          this.authConfigured = true;
+        } catch (error) {
+          this.showError('Failed to configure authentication');
+          return;
+        }
+      }
+    }
 
     // Validate file selection
     if (this.fileInput.files.length === 0) {

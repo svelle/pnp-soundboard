@@ -357,6 +357,56 @@ button:active,
   border-color: #8b5cf6;
 }
 
+/* Loading overlay */
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(31, 41, 55, 0.95);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  z-index: 10;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #374151;
+  border-top-color: #8b5cf6;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.loading-text {
+  color: #9ca3af;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.loading-progress-bar {
+  width: 80%;
+  height: 4px;
+  background: #374151;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.loading-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #8b5cf6, #6366f1);
+  transition: width 0.3s ease;
+}
+
+.loading-overlay.error .loading-spinner {
+  border-top-color: #ef4444;
+}
+
 /* Landscape mode for mobile */
 @media (max-width: 896px) and (orientation: landscape) {
   .sound-card {
@@ -366,4 +416,74 @@ button:active,
   .sound-emoji {
     font-size: 2rem;
   }
+}
+
+/* Drag and drop zone */
+.drop-zone {
+  border: 2px dashed #4b5563;
+  border-radius: 12px;
+  padding: 40px 20px;
+  text-align: center;
+  transition: all 0.3s ease;
+  background: rgba(55, 65, 81, 0.3);
+  cursor: pointer;
+}
+
+.drop-zone:hover {
+  border-color: #8b5cf6;
+  background: rgba(139, 92, 246, 0.1);
+}
+
+.drop-zone.drag-over {
+  border-color: #8b5cf6;
+  background: rgba(139, 92, 246, 0.2);
+  border-width: 3px;
+  transform: scale(1.02);
+}
+
+.drop-zone-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  pointer-events: none;
+}
+
+.drop-zone-icon {
+  width: 48px;
+  height: 48px;
+  color: #8b5cf6;
+  margin-bottom: 8px;
+}
+
+.drop-zone-text {
+  font-size: 1rem;
+  font-weight: 500;
+  color: #d1d5db;
+}
+
+.drop-zone-subtext {
+  font-size: 0.875rem;
+  color: #9ca3af;
+}
+
+.drop-zone-button {
+  display: inline-block;
+  padding: 8px 20px;
+  background: #8b5cf6;
+  color: white;
+  border-radius: 8px;
+  font-weight: 500;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background 0.2s;
+  pointer-events: all;
+}
+
+.drop-zone-button:hover {
+  background: #7c3aed;
+}
+
+.drop-zone-button:active {
+  transform: scale(0.95);
 }

@@ -1,0 +1,27 @@
+{
+  "name": "dnd-soundboard",
+  "version": "1.0.0",
+  "description": "A touch-friendly web-based soundboard for D&D sessions",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "keywords": [
+    "dnd",
+    "soundboard",
+    "audio",
+    "rpg"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "multer": "^1.4.5-lts.1",
+    "cors": "^2.8.5",
+    "express-basic-auth": "^1.2.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  }
+}

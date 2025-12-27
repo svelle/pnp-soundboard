@@ -62,6 +62,9 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage: storage,
   limits: {
+    // IMPORTANT: Keep in sync with:
+    // - js/utils/constants.js (MAX_FILE_SIZE)
+    // - nginx/conf.d/soundboard.conf.template (client_max_body_size)
     fileSize: 100 * 1024 * 1024 // 100MB
   },
   fileFilter: (req, file, cb) => {

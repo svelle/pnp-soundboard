@@ -40,9 +40,10 @@ echo "Domain: $DOMAIN"
 echo "Email: $EMAIL"
 echo ""
 
-# Check if this is first run or renewal
-if [ -d "./certbot/conf/live/$DOMAIN" ]; then
-    echo "Certificates already exist for $DOMAIN"
+# Check if valid certificates already exist
+CERT_PATH="./certbot/conf/live/$DOMAIN/fullchain.pem"
+if [ -f "$CERT_PATH" ]; then
+    echo "Valid certificates already exist for $DOMAIN"
     echo "Would you like to renew them? (y/n)"
     read -r response
     if [[ ! "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
@@ -52,6 +53,13 @@ if [ -d "./certbot/conf/live/$DOMAIN" ]; then
     RENEW=true
 else
     RENEW=false
+    # Clean up any incomplete certificate directories
+    if [ -d "./certbot/conf/live/$DOMAIN" ]; then
+        echo "Cleaning up incomplete certificate directory..."
+        rm -rf "./certbot/conf/live/$DOMAIN"
+        rm -rf "./certbot/conf/archive/$DOMAIN"
+        rm -rf "./certbot/conf/renewal/$DOMAIN.conf"
+    fi
 fi
 
 # Step 1: Create initial HTTP-only nginx config
@@ -78,6 +86,22 @@ else
         --agree-tos \
         --no-eff-email \
         -d "$DOMAIN"
+fi
+
+# Check if certificate was obtained successfully
+if [ ! -f "$CERT_PATH" ]; then
+    echo ""
+    echo "==================================="
+    echo "ERROR: Certificate not obtained!"
+    echo "==================================="
+    echo ""
+    echo "Please check:"
+    echo "1. Your domain DNS points to this server's IP address"
+    echo "2. Ports 80 and 443 are open in your firewall"
+    echo "3. No other web server is running on port 80"
+    echo ""
+    echo "Check the logs above for more details."
+    exit 1
 fi
 
 # Step 4: Update nginx config to use SSL

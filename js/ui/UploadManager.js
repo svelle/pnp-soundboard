@@ -211,14 +211,9 @@ export class UploadManager {
   }
 
   handleFileSelect() {
-    // Auto-populate name from filename and show selected file
+    // Show selected file (name will be auto-extracted from metadata on server)
     if (this.fileInput.files.length > 0) {
       const filename = this.fileInput.files[0].name;
-
-      // Auto-populate name if empty
-      if (!this.nameInput.value) {
-        this.nameInput.value = filename.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' ');
-      }
 
       // Show selected filename
       this.selectedFileName.textContent = `Selected: ${filename}`;

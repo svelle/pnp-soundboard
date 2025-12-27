@@ -7,6 +7,7 @@ const path = require('path');
 const fs = require('fs').promises;
 const fsSync = require('fs');
 const cors = require('cors');
+const { parseFile } = require('music-metadata');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -143,6 +144,21 @@ async function saveMetadata(metadata) {
   }
 }
 
+async function extractAudioTitle(filePath, fallbackFilename) {
+  try {
+    const metadata = await parseFile(filePath);
+    // Try to get title from metadata tags
+    if (metadata.common && metadata.common.title) {
+      return metadata.common.title;
+    }
+  } catch (error) {
+    console.log('Could not extract metadata, using filename:', error.message);
+  }
+
+  // Fallback to filename without extension
+  return fallbackFilename.replace(/\.[^/.]+$/, '');
+}
+
 // Serve static files (frontend)
 app.use(express.static(__dirname, {
   index: 'index.html'
@@ -208,10 +224,14 @@ app.post('/api/sounds', upload.single('file'), async (req, res) => {
     // Generate unique ID
     const id = Date.now().toString(36) + Math.random().toString(36).substr(2);
 
+    // Extract title from audio metadata if no name provided
+    const filePath = path.join(SOUNDS_DIR, req.file.filename);
+    const soundName = name || await extractAudioTitle(filePath, req.file.originalname);
+
     // Create metadata entry
     const soundMetadata = {
       id: id,
-      name: name || req.file.originalname.replace(/\.[^/.]+$/, ''),
+      name: soundName,
       category: category || 'sfx',
       emoji: emoji || '🔊',
       filename: req.file.filename,

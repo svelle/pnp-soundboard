@@ -57,8 +57,8 @@ ssl-setup:
 		echo "Copy .env.example to .env and configure DOMAIN and EMAIL"; \
 		exit 1; \
 	fi
-	chmod +x setup-ssl.sh
-	./setup-ssl.sh
+	@chmod +x setup-ssl.sh
+	@./setup-ssl.sh
 
 # Manually renew SSL certificates
 ssl-renew:

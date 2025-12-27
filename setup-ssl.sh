@@ -18,8 +18,10 @@ if [ ! -f .env ]; then
     exit 1
 fi
 
-# Load environment variables
+# Load environment variables and export them
+set -a
 source .env
+set +a
 
 # Check if DOMAIN is set
 if [ -z "$DOMAIN" ]; then
@@ -35,6 +37,10 @@ if [ -z "$EMAIL" ]; then
     echo "(This is required for Let's Encrypt certificate notifications)"
     exit 1
 fi
+
+# Ensure variables are exported for envsubst
+export DOMAIN
+export EMAIL
 
 echo "Domain: $DOMAIN"
 echo "Email: $EMAIL"

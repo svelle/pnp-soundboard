@@ -21,6 +21,24 @@ SOUNDBOARD_PASSWORD=your-secure-password
 
 Place your certificate files in `nginx/ssl/`:
 
+**If using Let's Encrypt:**
+```bash
+# Remove the symlinks (if they exist)
+rm -f nginx/ssl/fullchain.pem nginx/ssl/privkey.pem
+
+# Copy the actual certificate files
+sudo cp /etc/letsencrypt/live/pnp-soundboard.svelle.dev/fullchain.pem nginx/ssl/fullchain.pem
+sudo cp /etc/letsencrypt/live/pnp-soundboard.svelle.dev/privkey.pem nginx/ssl/privkey.pem
+
+# Fix ownership (replace 'youruser' with your username)
+sudo chown $USER:$USER nginx/ssl/fullchain.pem nginx/ssl/privkey.pem
+
+# Set proper permissions
+chmod 644 nginx/ssl/fullchain.pem
+chmod 600 nginx/ssl/privkey.pem
+```
+
+**If using other certificate providers:**
 ```bash
 # Copy your certificate files
 cp /path/to/fullchain.pem nginx/ssl/fullchain.pem
@@ -54,6 +72,20 @@ The nginx configuration expects these files in `nginx/ssl/`:
 
 When your certificate is renewed:
 
+**If using Let's Encrypt:**
+```bash
+# Copy renewed certificates
+sudo cp /etc/letsencrypt/live/pnp-soundboard.svelle.dev/fullchain.pem nginx/ssl/fullchain.pem
+sudo cp /etc/letsencrypt/live/pnp-soundboard.svelle.dev/privkey.pem nginx/ssl/privkey.pem
+
+# Fix ownership
+sudo chown $USER:$USER nginx/ssl/fullchain.pem nginx/ssl/privkey.pem
+
+# Restart nginx
+docker-compose restart nginx
+```
+
+**If using other providers:**
 ```bash
 # Copy new certificates
 cp /path/to/new/fullchain.pem nginx/ssl/fullchain.pem
@@ -61,6 +93,24 @@ cp /path/to/new/privkey.pem nginx/ssl/privkey.pem
 
 # Restart nginx
 docker-compose restart nginx
+```
+
+**Automate renewal (optional):**
+```bash
+# Create a renewal script
+cat > renew-certs.sh <<'EOF'
+#!/bin/bash
+sudo cp /etc/letsencrypt/live/pnp-soundboard.svelle.dev/fullchain.pem nginx/ssl/fullchain.pem
+sudo cp /etc/letsencrypt/live/pnp-soundboard.svelle.dev/privkey.pem nginx/ssl/privkey.pem
+sudo chown $USER:$USER nginx/ssl/fullchain.pem nginx/ssl/privkey.pem
+docker-compose restart nginx
+EOF
+
+chmod +x renew-certs.sh
+
+# Add to crontab to run monthly
+# crontab -e
+# 0 0 1 * * /path/to/pnp-soundboard/renew-certs.sh
 ```
 
 ## Nginx Configuration

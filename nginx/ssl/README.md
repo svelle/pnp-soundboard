@@ -7,19 +7,39 @@ Place your SSL certificate files in this directory.
 - **fullchain.pem** - Your full certificate chain (certificate + intermediate certificates)
 - **privkey.pem** - Your private key
 
-## For Wildcard Certificates
+## How to Copy Certificates
 
-If you're using a wildcard certificate (e.g., `*.svelle.dev`), just copy your certificate files here:
+### If using Let's Encrypt
+
+```bash
+# Remove any existing symlinks
+rm -f fullchain.pem privkey.pem
+
+# Copy the actual certificate files (replace domain with yours)
+sudo cp /etc/letsencrypt/live/your-domain.com/fullchain.pem fullchain.pem
+sudo cp /etc/letsencrypt/live/your-domain.com/privkey.pem privkey.pem
+
+# Fix ownership (run from the nginx/ssl directory)
+sudo chown $USER:$USER fullchain.pem privkey.pem
+
+# Set proper permissions
+chmod 644 fullchain.pem
+chmod 600 privkey.pem
+```
+
+### If using other certificate providers
 
 ```bash
 # Copy your certificate files to this directory
-cp /path/to/your/fullchain.pem nginx/ssl/fullchain.pem
-cp /path/to/your/privkey.pem nginx/ssl/privkey.pem
+cp /path/to/your/fullchain.pem fullchain.pem
+cp /path/to/your/privkey.pem privkey.pem
 
 # Set proper permissions
-chmod 644 nginx/ssl/fullchain.pem
-chmod 600 nginx/ssl/privkey.pem
+chmod 644 fullchain.pem
+chmod 600 privkey.pem
 ```
+
+**Important:** Don't use symlinks! Docker containers can't follow symlinks that point outside mounted volumes. Always copy the actual files.
 
 ## File Permissions
 

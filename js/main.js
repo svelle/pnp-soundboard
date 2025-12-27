@@ -15,7 +15,6 @@ class DnDSoundboard {
     this.audioMixer = null;
     this.audioManager = null;
     this.uiController = null;
-    this.preloadedSounds = null;
 
     this.initialized = false;
   }
@@ -86,11 +85,8 @@ class DnDSoundboard {
       // Initialize UI (load sounds, etc.)
       await this.uiController.init();
 
-      // Step 5: Pre-load sounds in server mode
-      if (this.mode === 'server') {
-        console.log('📥 Pre-loading sounds...');
-        await this.preloadSounds();
-      }
+      // Note: Sounds use lazy loading (load on first play) to avoid memory issues
+      // Subsequent plays are instant thanks to soundCache
 
       this.initialized = true;
       console.log('✅ D&D Soundboard initialized successfully!');
@@ -98,37 +94,6 @@ class DnDSoundboard {
     } catch (error) {
       console.error('❌ Failed to initialize D&D Soundboard:', error);
       this.showErrorMessage(error);
-    }
-  }
-
-  /**
-   * Pre-load sounds from server
-   */
-  async preloadSounds() {
-    if (this.mode !== 'server' || !this.soundLibrary.preloadAllSounds) {
-      return;
-    }
-
-    try {
-      // Initialize AudioContext first (required for decoding)
-      if (!this.audioMixer.initialized) {
-        this.audioMixer.init();
-        this.soundLibrary.audioContext = this.audioMixer.context;
-      }
-
-      // Pre-load with progress callbacks
-      this.preloadedSounds = await this.soundLibrary.preloadAllSounds(
-        (soundId, status, progress) => {
-          // Notify UI of loading progress
-          if (this.uiController && this.uiController.soundBoard) {
-            this.uiController.soundBoard.updateLoadingStatus(soundId, status, progress);
-          }
-        }
-      );
-
-      console.log(`✅ Pre-loaded ${this.preloadedSounds.size} sounds`);
-    } catch (error) {
-      console.error('Error pre-loading sounds:', error);
     }
   }
 

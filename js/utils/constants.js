@@ -18,6 +18,9 @@ export const CATEGORY_LABELS = {
   [CATEGORIES.AMBIENCE]: 'Ambience'
 };
 
+// IMPORTANT: Keep in sync with:
+// - server.js (multer fileSize limit)
+// - nginx/conf.d/soundboard.conf.template (client_max_body_size)
 export const MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB in bytes
 
 export const SUPPORTED_AUDIO_FORMATS = [

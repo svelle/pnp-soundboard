@@ -4,11 +4,10 @@ import { CATEGORIES, SUPPORTED_AUDIO_FORMATS, MAX_FILE_SIZE } from '../utils/con
 import { formatFileSize } from '../utils/helpers.js';
 
 export class UploadManager {
-  constructor(soundLibrary, onUploadComplete, mode = 'local', passwordHandler = null, projectManager = null) {
+  constructor(soundLibrary, onUploadComplete, mode = 'local', projectManager = null) {
     this.soundLibrary = soundLibrary;
     this.onUploadComplete = onUploadComplete;
     this.mode = mode;
-    this.passwordHandler = passwordHandler;
     this.projectManager = projectManager;
 
     this.modal = document.getElementById('uploadModal');
@@ -231,24 +230,6 @@ export class UploadManager {
 
   async handleUpload() {
     this.hideError();
-
-    // Configure authentication for server mode
-    if (this.mode === 'server' && !this.authConfigured) {
-      if (this.passwordHandler && this.soundLibrary.setAuth) {
-        try {
-          const password = await this.passwordHandler();
-          if (!password) {
-            this.showError('Password required for uploading');
-            return;
-          }
-          this.soundLibrary.setAuth('admin', password);
-          this.authConfigured = true;
-        } catch (error) {
-          this.showError('Failed to configure authentication');
-          return;
-        }
-      }
-    }
 
     // Validate file selection
     if (this.fileInput.files.length === 0) {

@@ -36,15 +36,6 @@ class DnDSoundboard {
     return 'local';
   }
 
-  /**
-   * Prompt for password (server mode only)
-   */
-  async promptForPassword() {
-    return new Promise((resolve) => {
-      const password = prompt('Enter soundboard password for uploading/deleting sounds:');
-      resolve(password);
-    });
-  }
 
   /**
    * Initialize the application
@@ -86,8 +77,7 @@ class DnDSoundboard {
         this.audioMixer,
         this.audioManager,
         this.soundLibrary,
-        this.mode,
-        () => this.promptForPassword()
+        this.mode
       );
 
       // Setup user interaction handler for mobile

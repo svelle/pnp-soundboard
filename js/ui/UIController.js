@@ -6,12 +6,11 @@ import { SoundBoard } from './SoundBoard.js';
 import { ProjectManager } from './ProjectManager.js';
 
 export class UIController {
-  constructor(audioMixer, audioManager, soundLibrary, mode = 'local', passwordHandler = null) {
+  constructor(audioMixer, audioManager, soundLibrary, mode = 'local') {
     this.audioMixer = audioMixer;
     this.audioManager = audioManager;
     this.soundLibrary = soundLibrary;
     this.mode = mode;
-    this.passwordHandler = passwordHandler;
 
     // Initialize UI components
     this.volumeControls = new VolumeControls(this.audioMixer);
@@ -31,7 +30,6 @@ export class UIController {
       this.soundLibrary,
       (sound) => this.handleUploadComplete(sound),
       this.mode,
-      this.passwordHandler,
       this.projectManager
     );
   }

@@ -6,17 +6,7 @@ export class ServerStorage {
   constructor(audioContext) {
     this.audioContext = audioContext;
     this.baseUrl = window.location.origin;
-    this.authCredentials = null;
     this.loadingCache = new Map(); // Track loading sounds
-  }
-
-  /**
-   * Set authentication credentials for uploads/deletes
-   * @param {string} username - Username (default: 'admin')
-   * @param {string} password - Password
-   */
-  setAuth(username, password) {
-    this.authCredentials = btoa(`${username}:${password}`);
   }
 
   /**
@@ -202,10 +192,6 @@ export class ServerStorage {
    * @returns {Promise<Object>} Added sound metadata
    */
   async addSound(file, category, options = {}) {
-    if (!this.authCredentials) {
-      throw new Error('Authentication required for uploading sounds');
-    }
-
     try {
       const formData = new FormData();
       formData.append('file', file);
@@ -219,16 +205,10 @@ export class ServerStorage {
 
       const response = await fetch(`${this.baseUrl}/api/sounds`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Basic ${this.authCredentials}`
-        },
         body: formData
       });
 
       if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error('Invalid password');
-        }
         throw new Error('Failed to upload sound');
       }
 
@@ -246,22 +226,12 @@ export class ServerStorage {
    * @returns {Promise<void>}
    */
   async deleteSound(id) {
-    if (!this.authCredentials) {
-      throw new Error('Authentication required for deleting sounds');
-    }
-
     try {
       const response = await fetch(`${this.baseUrl}/api/sounds/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Basic ${this.authCredentials}`
-        }
+        method: 'DELETE'
       });
 
       if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error('Invalid password');
-        }
         throw new Error('Failed to delete sound');
       }
     } catch (error) {
@@ -334,24 +304,16 @@ export class ServerStorage {
    * @returns {Promise<Object>} Created project
    */
   async createProject(name) {
-    if (!this.authCredentials) {
-      throw new Error('Authentication required for creating projects');
-    }
-
     try {
       const response = await fetch(`${this.baseUrl}/api/projects`, {
         method: 'POST',
         headers: {
-          'Authorization': `Basic ${this.authCredentials}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({ name })
       });
 
       if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error('Invalid password');
-        }
         throw new Error('Failed to create project');
       }
 
@@ -370,24 +332,16 @@ export class ServerStorage {
    * @returns {Promise<Object>} Updated project
    */
   async updateProject(projectId, updates) {
-    if (!this.authCredentials) {
-      throw new Error('Authentication required for updating projects');
-    }
-
     try {
       const response = await fetch(`${this.baseUrl}/api/projects/${projectId}`, {
         method: 'PUT',
         headers: {
-          'Authorization': `Basic ${this.authCredentials}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(updates)
       });
 
       if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error('Invalid password');
-        }
         throw new Error('Failed to update project');
       }
 
@@ -405,22 +359,12 @@ export class ServerStorage {
    * @returns {Promise<void>}
    */
   async deleteProject(projectId) {
-    if (!this.authCredentials) {
-      throw new Error('Authentication required for deleting projects');
-    }
-
     try {
       const response = await fetch(`${this.baseUrl}/api/projects/${projectId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Basic ${this.authCredentials}`
-        }
+        method: 'DELETE'
       });
 
       if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error('Invalid password');
-        }
         const errorData = await response.json();
         throw new Error(errorData.error || 'Failed to delete project');
       }

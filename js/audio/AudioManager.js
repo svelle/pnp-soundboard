@@ -153,6 +153,59 @@ export class AudioManager {
   }
 
   /**
+   * Pause a specific track
+   * @param {string} trackId - ID of the track to pause
+   */
+  pauseTrack(trackId) {
+    const activeTrack = this.activeTracks.get(trackId);
+
+    if (activeTrack && activeTrack.track.isPlaying()) {
+      activeTrack.track.pause();
+    }
+  }
+
+  /**
+   * Resume a paused track
+   * @param {string} trackId - ID of the track to resume
+   */
+  async resumeTrack(trackId) {
+    const activeTrack = this.activeTracks.get(trackId);
+
+    if (activeTrack && activeTrack.track.isPaused()) {
+      await this.audioMixer.resume();
+
+      const pauseOffset = activeTrack.track.pauseOffset;
+      const currentVolume = activeTrack.track.getVolume();
+      const isLooping = activeTrack.track.isLooping();
+
+      // Create new track from same audio buffer
+      const newTrack = this.audioMixer.createTrack(activeTrack.audioBuffer, {
+        loop: isLooping,
+        volume: currentVolume
+      });
+
+      // Setup ended callback
+      newTrack.onEnded(() => {
+        if (activeTrack.loopSettings && activeTrack.loopSettings.hasPauseInterval && this.activeTracks.has(trackId)) {
+          this._scheduleLoopRestart(trackId, activeTrack.audioBuffer, {
+            loop: true,
+            pauseMin: activeTrack.loopSettings.pauseMin,
+            pauseMax: activeTrack.loopSettings.pauseMax
+          });
+        } else if (!isLooping) {
+          this.activeTracks.delete(trackId);
+        }
+      });
+
+      // Replace track reference
+      activeTrack.track = newTrack;
+
+      // Play from pause offset
+      newTrack.play(pauseOffset);
+    }
+  }
+
+  /**
    * Stop all tracks for a specific sound
    * @param {string} soundId - ID of the sound
    */
@@ -217,9 +270,11 @@ export class AudioManager {
         trackId: trackId,
         soundId: activeTrack.soundId,
         metadata: activeTrack.metadata,
+        track: activeTrack.track, // Include track reference for pause/resume
         volume: activeTrack.track.getVolume(),
         isLooping: activeTrack.track.isLooping(),
-        isPlaying: activeTrack.track.isPlaying()
+        isPlaying: activeTrack.track.isPlaying(),
+        isPaused: activeTrack.track.isPaused()
       });
     }
 

@@ -67,7 +67,7 @@ export class AudioMixer {
     source.connect(gainNode);
     gainNode.connect(this.masterGain);
 
-    return new AudioTrack(source, gainNode, this.context);
+    return new AudioTrack(source, gainNode, this.context, audioBuffer);
   }
 
   /**

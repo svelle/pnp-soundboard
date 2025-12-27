@@ -11,6 +11,8 @@ A touch-friendly web-based soundboard for Dungeons & Dragons sessions. Play soun
 - 🌊 **Ambience** - Environmental loops (rain, ocean, forest, etc.)
 - 🎚️ **Individual Volume Controls** - Adjust each sound independently
 - 🔄 **Layered Playback** - Play multiple sounds simultaneously
+- ⏸️ **Pause/Resume** - Pause and resume playback with position memory
+- 📊 **Progress Indicators** - Visual progress bars for music and ambience tracks
 - ⏸️ **Random Pause Intervals** - Add natural variety with random pauses between loops
 - 📱 **Touch-Friendly** - Optimized for iPad and MacBook
 - 💾 **Browser Storage** - Sounds persist in your browser (IndexedDB)
@@ -55,13 +57,21 @@ Then open your browser to `http://localhost:8000`
 
 ### 2. Play Sounds
 
-- **Tap/Click** the ▶️ button to play
-- **Tap/Click** again (⏹️) to stop
+- **Tap/Click** the ▶️ button to start playing (changes to ⏸️ when playing)
+- **Tap/Click** the ⏸️ button to pause (changes back to ▶️ to resume)
+- **Tap/Click** the ⏹️ stop button to stop and reset to beginning
 - Use the **🔁 Loop** button on Music/Ambience to enable looping
-- Use the **⏸️ Pause** button to add random pauses between loops (more variety!)
+- Use the **⏸️ Random Pause** button to add random pauses between loops (more variety!)
   - When enabled, set min/max pause duration in seconds
   - Great for creating natural ambient soundscapes
-- Adjust the **volume slider** on each card
+- **Adjust the volume slider** on each card to control individual sound volume
+  - Works independently from master volume
+  - Final volume = Master Volume × Individual Volume
+- **Progress indicator** shows playback position for Music and Ambience tracks
+  - Real-time progress bar with time display (e.g., "1:23 / 3:45")
+  - Updates every 100ms for smooth animation
+  - Pauses when track is paused, resets when stopped
+  - Works with looping tracks
 
 ### 3. Master Controls
 

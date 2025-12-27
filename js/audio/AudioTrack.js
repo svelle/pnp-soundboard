@@ -1,14 +1,16 @@
 // Audio Track - Individual audio source with gain control
 
 export class AudioTrack {
-  constructor(source, gainNode, context) {
+  constructor(source, gainNode, context, audioBuffer = null) {
     this.source = source;
     this.gainNode = gainNode;
     this.context = context;
+    this.audioBuffer = audioBuffer; // Store for recreating on resume
 
-    this.state = 'stopped'; // 'playing', 'stopped'
+    this.state = 'stopped'; // 'playing', 'paused', 'stopped'
     this.startTime = 0;
     this.pauseOffset = 0;
+    this.originalLoop = false;
 
     // Event callbacks
     this.onEndedCallback = null;
@@ -36,9 +38,50 @@ export class AudioTrack {
     try {
       this.source.start(0, offset);
       this.startTime = this.context.currentTime - offset;
+      this.pauseOffset = offset;
       this.state = 'playing';
     } catch (error) {
       console.error('Error playing track:', error);
+    }
+  }
+
+  /**
+   * Pause the audio track
+   * Note: Recreates the source when resuming since AudioBufferSourceNode can't be paused
+   */
+  pause() {
+    if (this.state !== 'playing') {
+      return;
+    }
+
+    try {
+      // Calculate current position
+      this.pauseOffset = this.context.currentTime - this.startTime;
+
+      // Stop the source
+      this.source.stop();
+      this.state = 'paused';
+    } catch (error) {
+      console.error('Error pausing track:', error);
+    }
+  }
+
+  /**
+   * Resume the audio track from paused position
+   * @param {Function} recreateSourceCallback - Callback to recreate source with same settings
+   */
+  resume(recreateSourceCallback) {
+    if (this.state !== 'paused') {
+      return;
+    }
+
+    try {
+      // Need to recreate source through callback since AudioBufferSourceNode can only be used once
+      if (recreateSourceCallback) {
+        recreateSourceCallback(this.pauseOffset);
+      }
+    } catch (error) {
+      console.error('Error resuming track:', error);
     }
   }
 
@@ -81,6 +124,7 @@ export class AudioTrack {
    */
   setLoop(shouldLoop) {
     this.source.loop = shouldLoop;
+    this.originalLoop = shouldLoop;
   }
 
   /**
@@ -88,7 +132,15 @@ export class AudioTrack {
    * @returns {boolean} Whether track is looping
    */
   isLooping() {
-    return this.source.loop;
+    return this.originalLoop || this.source.loop;
+  }
+
+  /**
+   * Check if track is paused
+   * @returns {boolean}
+   */
+  isPaused() {
+    return this.state === 'paused';
   }
 
   /**

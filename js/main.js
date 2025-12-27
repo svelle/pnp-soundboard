@@ -132,16 +132,18 @@ class DnDSoundboard {
 }
 
 // Initialize application when DOM is ready
+let app;
+
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
-    const app = new DnDSoundboard();
+    app = new DnDSoundboard();
     app.init();
+    // Make app instance available globally for debugging
+    window.dndSoundboard = app;
   });
 } else {
-  const app = new DnDSoundboard();
+  app = new DnDSoundboard();
   app.init();
+  // Make app instance available globally for debugging
+  window.dndSoundboard = app;
 }
-
-// Make app instance available globally for debugging
-window.dndSoundboard = new DnDSoundboard();
-window.dndSoundboard.init();

@@ -12,6 +12,9 @@ export class SoundBoard {
     // Track which sounds are currently playing
     this.playingSounds = new Map(); // soundId -> array of trackIds
 
+    // Track progress update intervals
+    this.progressIntervals = new Map(); // soundId -> intervalId
+
     this.emptyState = document.getElementById('emptyState');
     this.stopAllBtn = document.getElementById('stopAllBtn');
 
@@ -130,11 +133,17 @@ export class SoundBoard {
     const buttons = document.createElement('div');
     buttons.className = 'sound-buttons';
 
-    // Play button
-    const playBtn = document.createElement('button');
-    playBtn.className = 'btn btn-primary play-btn';
-    playBtn.innerHTML = '▶️';
-    playBtn.title = 'Play';
+    // Play/Pause button
+    const playPauseBtn = document.createElement('button');
+    playPauseBtn.className = 'btn btn-primary play-pause-btn';
+    playPauseBtn.innerHTML = '▶️';
+    playPauseBtn.title = 'Play';
+
+    // Stop button
+    const stopBtn = document.createElement('button');
+    stopBtn.className = 'btn btn-secondary stop-btn';
+    stopBtn.innerHTML = '⏹️';
+    stopBtn.title = 'Stop';
 
     // Loop button (for music and ambience)
     const loopBtn = document.createElement('button');
@@ -155,7 +164,8 @@ export class SoundBoard {
     deleteBtn.title = 'Delete';
 
     // Add buttons
-    buttons.appendChild(playBtn);
+    buttons.appendChild(playPauseBtn);
+    buttons.appendChild(stopBtn);
     if (sound.category === CATEGORIES.MUSIC || sound.category === CATEGORIES.AMBIENCE) {
       buttons.appendChild(loopBtn);
       buttons.appendChild(pauseBtn);
@@ -163,6 +173,87 @@ export class SoundBoard {
     buttons.appendChild(deleteBtn);
 
     controls.appendChild(buttons);
+
+    // Volume slider
+    const volumeContainer = document.createElement('div');
+    volumeContainer.className = 'volume-container mt-2';
+
+    const volumeLabel = document.createElement('div');
+    volumeLabel.className = 'text-xs text-gray-400 mb-1 flex justify-between';
+    volumeLabel.innerHTML = `
+      <span>Volume</span>
+      <span class="volume-value">80%</span>
+    `;
+
+    const volumeSlider = document.createElement('input');
+    volumeSlider.type = 'range';
+    volumeSlider.min = '0';
+    volumeSlider.max = '100';
+    volumeSlider.value = '80';
+    volumeSlider.className = 'w-full h-2 rounded-lg appearance-none cursor-pointer bg-gray-700';
+    volumeSlider.style.setProperty('--value', '80%');
+
+    volumeContainer.appendChild(volumeLabel);
+    volumeContainer.appendChild(volumeSlider);
+    controls.appendChild(volumeContainer);
+
+    // Store volume value
+    let currentVolume = 0.8;
+
+    // Volume slider events
+    volumeSlider.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+
+    volumeSlider.addEventListener('input', (e) => {
+      e.stopPropagation();
+      const value = parseInt(e.target.value);
+      currentVolume = value / 100;
+
+      // Update visual
+      volumeSlider.style.setProperty('--value', `${value}%`);
+      volumeLabel.querySelector('.volume-value').textContent = `${value}%`;
+
+      // Update all active tracks for this sound
+      const trackIds = this.playingSounds.get(sound.id) || [];
+      trackIds.forEach(trackId => {
+        this.audioManager.setTrackVolume(trackId, currentVolume);
+      });
+    });
+
+    // Store volume reference
+    card.volumeSlider = volumeSlider;
+    card.getCurrentVolume = () => currentVolume;
+
+    // Progress bar for music and ambience
+    if (sound.category === CATEGORIES.MUSIC || sound.category === CATEGORIES.AMBIENCE) {
+      const progressContainer = document.createElement('div');
+      progressContainer.className = 'progress-container mt-2';
+
+      const progressLabel = document.createElement('div');
+      progressLabel.className = 'text-xs text-gray-400 mb-1 flex justify-between';
+      progressLabel.innerHTML = `
+        <span>Progress</span>
+        <span class="progress-time">0:00 / ${formatDuration(sound.duration || 0)}</span>
+      `;
+
+      const progressBarBg = document.createElement('div');
+      progressBarBg.className = 'progress-bar-bg';
+
+      const progressBarFill = document.createElement('div');
+      progressBarFill.className = 'progress-bar-fill';
+      progressBarFill.style.width = '0%';
+
+      progressBarBg.appendChild(progressBarFill);
+      progressContainer.appendChild(progressLabel);
+      progressContainer.appendChild(progressBarBg);
+      controls.appendChild(progressContainer);
+
+      // Store progress references
+      card.progressBarFill = progressBarFill;
+      card.progressTimeLabel = progressLabel.querySelector('.progress-time');
+      card.soundDuration = sound.duration || 0;
+    }
 
     // Pause interval controls (hidden by default)
     if (sound.category === CATEGORIES.MUSIC || sound.category === CATEGORIES.AMBIENCE) {
@@ -220,10 +311,18 @@ export class SoundBoard {
     card.appendChild(controls);
 
     // Event listeners
-    playBtn.addEventListener('click', (e) => {
+    playPauseBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       const pauseBtn = card.querySelector('.pause-btn');
-      this.togglePlay(sound.id, card, playBtn, loopBtn, pauseBtn);
+      this.togglePlayPause(sound.id, card, playPauseBtn, loopBtn, pauseBtn);
+    });
+
+    stopBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.stopSound(sound.id);
+      card.classList.remove('playing', 'paused');
+      playPauseBtn.innerHTML = '▶️';
+      playPauseBtn.title = 'Play';
     });
 
     if (sound.category === CATEGORIES.MUSIC || sound.category === CATEGORIES.AMBIENCE) {
@@ -261,31 +360,63 @@ export class SoundBoard {
   }
 
   /**
-   * Toggle play/stop for a sound
+   * Toggle play/pause for a sound
    * @param {string} soundId - Sound ID
    * @param {HTMLElement} card - Sound card element
-   * @param {HTMLElement} playBtn - Play button element
+   * @param {HTMLElement} playPauseBtn - Play/Pause button element
    * @param {HTMLElement} loopBtn - Loop button element
    * @param {HTMLElement} pauseBtn - Pause interval button element
    */
-  async togglePlay(soundId, card, playBtn, loopBtn, pauseBtn) {
+  async togglePlayPause(soundId, card, playPauseBtn, loopBtn, pauseBtn) {
     try {
-      const isPlaying = this.playingSounds.has(soundId);
+      const trackIds = this.playingSounds.get(soundId) || [];
 
-      if (isPlaying) {
-        // Stop sound
-        this.stopSound(soundId);
+      // Check if any track is paused
+      const isPaused = trackIds.some(trackId => {
+        const activeTrack = this.audioManager.getActiveTracks().find(t => t.trackId === trackId);
+        return activeTrack && activeTrack.track && activeTrack.track.isPaused();
+      });
+
+      // Check if playing
+      const isPlaying = trackIds.some(trackId => {
+        const activeTrack = this.audioManager.getActiveTracks().find(t => t.trackId === trackId);
+        return activeTrack && activeTrack.isPlaying;
+      });
+
+      if (isPaused) {
+        // Resume
+        for (const trackId of trackIds) {
+          await this.audioManager.resumeTrack(trackId);
+        }
+        card.classList.remove('paused');
+        card.classList.add('playing');
+        playPauseBtn.innerHTML = '⏸️';
+        playPauseBtn.title = 'Pause';
+
+        // Resume progress tracking
+        if (card.progressBarFill && card.soundDuration) {
+          this.startProgressTracking(soundId, card);
+        }
+      } else if (isPlaying) {
+        // Pause
+        for (const trackId of trackIds) {
+          this.audioManager.pauseTrack(trackId);
+        }
         card.classList.remove('playing');
-        playBtn.innerHTML = '▶️';
-        playBtn.title = 'Play';
+        card.classList.add('paused');
+        playPauseBtn.innerHTML = '▶️';
+        playPauseBtn.title = 'Resume';
+
+        // Stop progress tracking but keep current progress
+        this.stopProgressTracking(soundId);
       } else {
-        // Play sound
+        // Start playing
         const shouldLoop = loopBtn && loopBtn.classList.contains('active');
         const usePauseInterval = pauseBtn && pauseBtn.classList.contains('active');
 
         const options = {
           loop: shouldLoop,
-          volume: 0.8
+          volume: card.getCurrentVolume ? card.getCurrentVolume() : 0.8
         };
 
         // Add pause interval settings if enabled
@@ -307,14 +438,23 @@ export class SoundBoard {
         this.playingSounds.get(soundId).push(trackId);
 
         card.classList.add('playing');
-        playBtn.innerHTML = '⏹️';
-        playBtn.title = 'Stop';
+        playPauseBtn.innerHTML = '⏸️';
+        playPauseBtn.title = 'Pause';
 
         // Show stop all button
         this.stopAllBtn.classList.remove('hidden');
 
+        // Start progress tracking for music/ambience
+        if (card.progressBarFill && card.soundDuration) {
+          this.startProgressTracking(soundId, card);
+        }
+
         // Setup track ended callback (for non-looping)
         if (!shouldLoop) {
+          // Get sound to determine duration for cleanup
+          const sound = await this.soundLibrary.getSound(soundId);
+          const duration = sound.duration || 60; // Default to 60s if duration unknown
+
           // Auto-update UI when track ends
           setTimeout(() => {
             const trackIds = this.playingSounds.get(soundId) || [];
@@ -324,8 +464,8 @@ export class SoundBoard {
 
             if (!stillPlaying) {
               card.classList.remove('playing');
-              playBtn.innerHTML = '▶️';
-              playBtn.title = 'Play';
+              playPauseBtn.innerHTML = '▶️';
+              playPauseBtn.title = 'Play';
               this.playingSounds.delete(soundId);
 
               // Hide stop all if no sounds playing
@@ -333,12 +473,12 @@ export class SoundBoard {
                 this.stopAllBtn.classList.add('hidden');
               }
             }
-          }, (await this.soundLibrary.get(soundId)).duration * 1000 + 100);
+          }, duration * 1000 + 100);
         }
       }
 
     } catch (error) {
-      console.error('Error toggling play:', error);
+      console.error('Error toggling play/pause:', error);
     }
   }
 
@@ -355,14 +495,25 @@ export class SoundBoard {
 
     this.playingSounds.delete(soundId);
 
+    // Stop progress tracking
+    this.stopProgressTracking(soundId);
+
     // Update UI
     const card = document.querySelector(`[data-sound-id="${soundId}"]`);
     if (card) {
-      card.classList.remove('playing');
-      const playBtn = card.querySelector('.play-btn');
-      if (playBtn) {
-        playBtn.innerHTML = '▶️';
-        playBtn.title = 'Play';
+      card.classList.remove('playing', 'paused');
+      const playPauseBtn = card.querySelector('.play-pause-btn');
+      if (playPauseBtn) {
+        playPauseBtn.innerHTML = '▶️';
+        playPauseBtn.title = 'Play';
+      }
+
+      // Reset progress bar
+      if (card.progressBarFill) {
+        card.progressBarFill.style.width = '0%';
+        if (card.progressTimeLabel && card.soundDuration) {
+          card.progressTimeLabel.textContent = `0:00 / ${formatDuration(card.soundDuration)}`;
+        }
       }
     }
 
@@ -379,17 +530,91 @@ export class SoundBoard {
     this.audioManager.stopAll();
     this.playingSounds.clear();
 
+    // Stop all progress tracking
+    for (const soundId of this.progressIntervals.keys()) {
+      this.stopProgressTracking(soundId);
+    }
+
     // Update all cards
-    document.querySelectorAll('.sound-card.playing').forEach(card => {
-      card.classList.remove('playing');
-      const playBtn = card.querySelector('.play-btn');
-      if (playBtn) {
-        playBtn.innerHTML = '▶️';
-        playBtn.title = 'Play';
+    document.querySelectorAll('.sound-card.playing, .sound-card.paused').forEach(card => {
+      card.classList.remove('playing', 'paused');
+      const playPauseBtn = card.querySelector('.play-pause-btn');
+      if (playPauseBtn) {
+        playPauseBtn.innerHTML = '▶️';
+        playPauseBtn.title = 'Play';
+      }
+
+      // Reset progress bars
+      if (card.progressBarFill) {
+        card.progressBarFill.style.width = '0%';
+        if (card.progressTimeLabel && card.soundDuration) {
+          card.progressTimeLabel.textContent = `0:00 / ${formatDuration(card.soundDuration)}`;
+        }
       }
     });
 
     this.stopAllBtn.classList.add('hidden');
+  }
+
+  /**
+   * Start tracking progress for a sound
+   * @param {string} soundId - Sound ID
+   * @param {HTMLElement} card - Sound card element
+   */
+  startProgressTracking(soundId, card) {
+    // Clear existing interval if any
+    this.stopProgressTracking(soundId);
+
+    // Update progress every 100ms
+    const intervalId = setInterval(() => {
+      const trackIds = this.playingSounds.get(soundId) || [];
+
+      if (trackIds.length === 0) {
+        this.stopProgressTracking(soundId);
+        return;
+      }
+
+      // Get the first track's current time
+      const firstTrackId = trackIds[0];
+      const activeTracks = this.audioManager.getActiveTracks();
+      const activeTrack = activeTracks.find(t => t.trackId === firstTrackId);
+
+      if (activeTrack && activeTrack.track) {
+        const currentTime = activeTrack.track.getCurrentTime();
+        const duration = card.soundDuration || 1;
+
+        // Calculate progress percentage
+        let progress = (currentTime / duration) * 100;
+
+        // Handle looping - reset to 0 when exceeds 100%
+        if (progress > 100) {
+          progress = progress % 100;
+        }
+
+        // Update progress bar
+        card.progressBarFill.style.width = `${Math.min(progress, 100)}%`;
+
+        // Update time label
+        if (card.progressTimeLabel) {
+          const displayTime = currentTime % duration; // Handle looping
+          card.progressTimeLabel.textContent = `${formatDuration(displayTime)} / ${formatDuration(duration)}`;
+        }
+      }
+    }, 100);
+
+    this.progressIntervals.set(soundId, intervalId);
+  }
+
+  /**
+   * Stop tracking progress for a sound
+   * @param {string} soundId - Sound ID
+   */
+  stopProgressTracking(soundId) {
+    const intervalId = this.progressIntervals.get(soundId);
+    if (intervalId) {
+      clearInterval(intervalId);
+      this.progressIntervals.delete(soundId);
+    }
   }
 
   /**

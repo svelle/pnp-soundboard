@@ -521,7 +521,13 @@ export class SoundBoard {
           options.pauseMax = Math.max(pauseMin, pauseMax);
         }
 
+        // Show loading indicator (for lazy loading on first play)
+        this.updateLoadingStatus(soundId, 'loading', 0);
+
         const trackId = await this.audioManager.playSound(soundId, options);
+
+        // Hide loading indicator
+        this.updateLoadingStatus(soundId, 'ready', 1);
 
         // Track playing sound
         if (!this.playingSounds.has(soundId)) {
@@ -581,6 +587,12 @@ export class SoundBoard {
 
     } catch (error) {
       console.error('Error toggling play/pause:', error);
+      // Show error state in loading overlay
+      this.updateLoadingStatus(soundId, 'error', 0);
+      // Auto-hide error after 3 seconds
+      setTimeout(() => {
+        this.updateLoadingStatus(soundId, 'ready', 1);
+      }, 3000);
     }
   }
 
@@ -932,7 +944,12 @@ export class SoundBoard {
         progressBar.style.width = `${progress * 100}%`;
       }
       if (loadingText) {
-        loadingText.textContent = `Loading ${Math.round(progress * 100)}%`;
+        // Show different text based on progress
+        if (progress === 0) {
+          loadingText.textContent = 'Loading sound...';
+        } else {
+          loadingText.textContent = `Loading ${Math.round(progress * 100)}%`;
+        }
       }
     } else if (status === 'ready') {
       if (progressBar) {
@@ -948,7 +965,7 @@ export class SoundBoard {
       }, 500);
     } else if (status === 'error') {
       if (loadingText) {
-        loadingText.textContent = 'Error';
+        loadingText.textContent = 'Failed to load';
         loadingText.style.color = '#ef4444';
       }
       loadingOverlay.classList.add('error');

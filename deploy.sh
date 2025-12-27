@@ -72,17 +72,20 @@ echo "  ✓ Nginx config generated for $DOMAIN"
 
 # Build and start services
 echo ""
-echo "Step 2: Building and starting services..."
-docker-compose up -d --build --no-cache
+echo "Step 2: Building Docker images..."
+docker-compose build --no-cache
+
+echo "Step 3: Starting services..."
+docker-compose up -d
 
 # Wait for services to be ready
 echo ""
-echo "Step 3: Waiting for services to be ready..."
+echo "Step 4: Waiting for services to be ready..."
 sleep 3
 
 # Check status
 echo ""
-echo "Step 4: Checking service status..."
+echo "Step 5: Checking service status..."
 docker-compose ps
 
 echo ""

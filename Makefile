@@ -1,4 +1,4 @@
-.PHONY: help clean clean-sounds clean-all build up down restart logs deploy backup restore status
+.PHONY: help clean clean-sounds clean-all build rebuild up down restart logs deploy backup restore status
 
 help:
 	@echo "DnD Soundboard - Available Commands"
@@ -6,7 +6,8 @@ help:
 	@echo ""
 	@echo "Development & Deployment:"
 	@echo "  make deploy        - Deploy with SSL (recommended)"
-	@echo "  make build         - Build Docker images"
+	@echo "  make build         - Build Docker images (no cache)"
+	@echo "  make rebuild       - Rebuild and restart (no cache)"
 	@echo "  make up            - Start all services"
 	@echo "  make down          - Stop all services"
 	@echo "  make restart       - Restart all services"
@@ -23,9 +24,14 @@ help:
 	@echo "  make clean-all     - Remove everything (configs, sounds, Docker volumes)"
 	@echo ""
 
-# Build Docker images
+# Build Docker images (no cache)
 build:
 	docker-compose build --no-cache
+
+# Rebuild and restart (no cache)
+rebuild:
+	docker-compose build --no-cache
+	docker-compose up -d
 
 # Start services
 up:

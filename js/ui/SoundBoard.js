@@ -44,6 +44,45 @@ export class SoundBoard {
     this.stopAllBtn.addEventListener('click', () => {
       this.stopAll();
     });
+
+    // Setup category collapse/expand
+    this.setupCategoryCollapse();
+  }
+
+  /**
+   * Setup category collapse/expand functionality
+   */
+  setupCategoryCollapse() {
+    const headers = document.querySelectorAll('.category-header');
+
+    headers.forEach(header => {
+      const category = header.dataset.category;
+      const content = header.nextElementSibling;
+
+      // Load collapsed state from localStorage
+      const isCollapsed = localStorage.getItem(`category-collapsed-${category}`) === 'true';
+      if (isCollapsed) {
+        header.classList.add('collapsed');
+        content.classList.add('collapsed');
+      }
+
+      // Click handler
+      header.addEventListener('click', () => {
+        const isCurrentlyCollapsed = header.classList.contains('collapsed');
+
+        if (isCurrentlyCollapsed) {
+          // Expand
+          header.classList.remove('collapsed');
+          content.classList.remove('collapsed');
+          localStorage.setItem(`category-collapsed-${category}`, 'false');
+        } else {
+          // Collapse
+          header.classList.add('collapsed');
+          content.classList.add('collapsed');
+          localStorage.setItem(`category-collapsed-${category}`, 'true');
+        }
+      });
+    });
   }
 
   /**

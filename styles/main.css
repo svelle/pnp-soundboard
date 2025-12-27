@@ -418,6 +418,76 @@ button:active,
   }
 }
 
+/* Project list item */
+.project-list-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  background: rgba(55, 65, 81, 0.3);
+  border-radius: 8px;
+  border: 1px solid #4b5563;
+  transition: all 0.2s;
+}
+
+.project-list-item:hover {
+  background: rgba(55, 65, 81, 0.5);
+  border-color: #8b5cf6;
+}
+
+.project-name-input {
+  flex: 1;
+  padding: 6px 10px;
+  background: #374151;
+  border: 1px solid #4b5563;
+  border-radius: 6px;
+  color: white;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+}
+
+.project-name-input:focus {
+  outline: none;
+  border-color: #8b5cf6;
+  background: #1f2937;
+}
+
+.btn-icon {
+  min-width: 36px;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  font-size: 1rem;
+  background: #374151;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-icon:hover:not(.disabled) {
+  background: #4b5563;
+  transform: scale(1.05);
+}
+
+.btn-icon:active:not(.disabled) {
+  transform: scale(0.95);
+}
+
+.btn-icon.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-rename:hover:not(.disabled) {
+  background: #6366f1;
+}
+
+.btn-delete:hover:not(.disabled) {
+  background: #dc2626;
+}
+
 /* Drag and drop zone */
 .drop-zone {
   border: 2px dashed #4b5563;

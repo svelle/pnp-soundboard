@@ -1,9 +1,10 @@
 // Application constants
 
 export const DB_NAME = 'dnd-soundboard-db';
-export const DB_VERSION = 1;
+export const DB_VERSION = 2;
 export const SOUNDS_STORE = 'sounds';
 export const SETTINGS_STORE = 'settings';
+export const PROJECTS_STORE = 'projects';
 
 export const CATEGORIES = {
   SFX: 'sfx',
@@ -31,3 +32,6 @@ export const SUPPORTED_AUDIO_FORMATS = [
 
 export const DEFAULT_VOLUME = 0.8;
 export const DEFAULT_MASTER_VOLUME = 0.8;
+
+export const ALL_PROJECTS = 'ALL_PROJECTS';
+export const DEFAULT_PROJECT_ID = 'default';

@@ -1,5 +1,7 @@
 // Server Storage - Fetch sounds from backend instead of IndexedDB
 
+import { ALL_PROJECTS } from '../utils/constants.js';
+
 export class ServerStorage {
   constructor(audioContext) {
     this.audioContext = audioContext;
@@ -211,6 +213,10 @@ export class ServerStorage {
       formData.append('category', category);
       formData.append('emoji', options.emoji || '🔊');
 
+      if (options.projectId) {
+        formData.append('projectId', options.projectId);
+      }
+
       const response = await fetch(`${this.baseUrl}/api/sounds`, {
         method: 'POST',
         headers: {
@@ -276,5 +282,215 @@ export class ServerStorage {
    */
   async clearAll() {
     throw new Error('Clear all not supported in server mode');
+  }
+
+  // ==================== PROJECT METHODS ====================
+
+  /**
+   * Get all projects from server
+   * @returns {Promise<Array>} Array of projects
+   */
+  async getAllProjects() {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/projects`);
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch projects from server');
+      }
+
+      const projects = await response.json();
+      // Sort by name alphabetically
+      return projects.sort((a, b) => a.name.localeCompare(b.name));
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get a project by ID
+   * @param {string} projectId - Project ID
+   * @returns {Promise<Object>} Project object
+   */
+  async getProject(projectId) {
+    try {
+      const projects = await this.getAllProjects();
+      const project = projects.find(p => p.id === projectId);
+
+      if (!project) {
+        throw new Error('Project not found');
+      }
+
+      return project;
+    } catch (error) {
+      console.error('Error fetching project:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create a new project
+   * @param {string} name - Project name
+   * @returns {Promise<Object>} Created project
+   */
+  async createProject(name) {
+    if (!this.authCredentials) {
+      throw new Error('Authentication required for creating projects');
+    }
+
+    try {
+      const response = await fetch(`${this.baseUrl}/api/projects`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Basic ${this.authCredentials}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ name })
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Invalid password');
+        }
+        throw new Error('Failed to create project');
+      }
+
+      const project = await response.json();
+      return project;
+    } catch (error) {
+      console.error('Error creating project:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update a project
+   * @param {string} projectId - Project ID
+   * @param {Object} updates - Fields to update
+   * @returns {Promise<Object>} Updated project
+   */
+  async updateProject(projectId, updates) {
+    if (!this.authCredentials) {
+      throw new Error('Authentication required for updating projects');
+    }
+
+    try {
+      const response = await fetch(`${this.baseUrl}/api/projects/${projectId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Basic ${this.authCredentials}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(updates)
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Invalid password');
+        }
+        throw new Error('Failed to update project');
+      }
+
+      const project = await response.json();
+      return project;
+    } catch (error) {
+      console.error('Error updating project:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete a project
+   * @param {string} projectId - Project ID
+   * @returns {Promise<void>}
+   */
+  async deleteProject(projectId) {
+    if (!this.authCredentials) {
+      throw new Error('Authentication required for deleting projects');
+    }
+
+    try {
+      const response = await fetch(`${this.baseUrl}/api/projects/${projectId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Basic ${this.authCredentials}`
+        }
+      });
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Invalid password');
+        }
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to delete project');
+      }
+    } catch (error) {
+      console.error('Error deleting project:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Add a sound to a project
+   * @param {string} projectId - Project ID
+   * @param {string} soundId - Sound ID
+   * @returns {Promise<Object>} Updated project
+   */
+  async addSoundToProject(projectId, soundId) {
+    try {
+      const project = await this.getProject(projectId);
+
+      // Don't add if already in project
+      if (project.soundIds.includes(soundId)) {
+        return project;
+      }
+
+      project.soundIds.push(soundId);
+      return await this.updateProject(projectId, { soundIds: project.soundIds });
+    } catch (error) {
+      console.error('Error adding sound to project:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Remove a sound from a project
+   * @param {string} projectId - Project ID
+   * @param {string} soundId - Sound ID
+   * @returns {Promise<Object>} Updated project
+   */
+  async removeSoundFromProject(projectId, soundId) {
+    try {
+      const project = await this.getProject(projectId);
+
+      project.soundIds = project.soundIds.filter(id => id !== soundId);
+      return await this.updateProject(projectId, { soundIds: project.soundIds });
+    } catch (error) {
+      console.error('Error removing sound from project:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get all sounds for a project
+   * @param {string} projectId - Project ID (use ALL_PROJECTS to get all sounds)
+   * @returns {Promise<Array>} Array of sounds in the project
+   */
+  async getSoundsByProject(projectId) {
+    try {
+      // Special case: get all sounds
+      if (projectId === ALL_PROJECTS) {
+        return await this.getAllSounds();
+      }
+
+      const project = await this.getProject(projectId);
+      const allSounds = await this.getAllSounds();
+
+      // Filter sounds that are in this project
+      return allSounds.filter(sound => project.soundIds.includes(sound.id));
+    } catch (error) {
+      console.error('Error getting sounds by project:', error);
+      throw error;
+    }
   }
 }

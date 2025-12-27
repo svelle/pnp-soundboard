@@ -47,11 +47,14 @@ export class SoundBoard {
   }
 
   /**
-   * Load and render all sounds
+   * Load and render sounds (optionally filtered by project)
+   * @param {string} projectId - Optional project ID to filter by
    */
-  async loadSounds() {
+  async loadSounds(projectId = null) {
     try {
-      const sounds = await this.soundLibrary.getAllSounds();
+      const sounds = projectId
+        ? await this.soundLibrary.getSoundsByProject(projectId)
+        : await this.soundLibrary.getAllSounds();
 
       // Clear all grids
       Object.values(this.sections).forEach(({ grid }) => {

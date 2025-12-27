@@ -1,6 +1,6 @@
 // Sound Library - High-level API for managing sounds
 
-import { SOUNDS_STORE, CATEGORIES } from '../utils/constants.js';
+import { SOUNDS_STORE, CATEGORIES, PROJECTS_STORE, ALL_PROJECTS, DEFAULT_PROJECT_ID } from '../utils/constants.js';
 import { generateUUID, sanitizeFilename } from '../utils/helpers.js';
 
 export class SoundLibrary {
@@ -190,5 +190,167 @@ export class SoundLibrary {
       [CATEGORIES.AMBIENCE]: '🌊'
     };
     return emojiMap[category] || '🔊';
+  }
+
+  // ==================== PROJECT METHODS ====================
+
+  /**
+   * Create a new project
+   * @param {string} name - Project name
+   * @returns {Promise<Object>} Created project
+   */
+  async createProject(name) {
+    try {
+      const project = {
+        id: generateUUID(),
+        name: name,
+        soundIds: [],
+        created: new Date().toISOString(),
+        lastModified: new Date().toISOString()
+      };
+
+      await this.dbManager.add(PROJECTS_STORE, project);
+      return project;
+    } catch (error) {
+      throw new Error(`Failed to create project: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get a project by ID
+   * @param {string} projectId - Project ID
+   * @returns {Promise<Object>} Project object
+   */
+  async getProject(projectId) {
+    try {
+      const project = await this.dbManager.get(PROJECTS_STORE, projectId);
+      if (!project) {
+        throw new Error('Project not found');
+      }
+      return project;
+    } catch (error) {
+      throw new Error(`Failed to get project: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get all projects, sorted by name
+   * @returns {Promise<Array>} Array of all projects
+   */
+  async getAllProjects() {
+    try {
+      const projects = await this.dbManager.getAll(PROJECTS_STORE);
+      // Sort by name alphabetically
+      return projects.sort((a, b) => a.name.localeCompare(b.name));
+    } catch (error) {
+      throw new Error(`Failed to get all projects: ${error.message}`);
+    }
+  }
+
+  /**
+   * Update a project
+   * @param {string} projectId - Project ID
+   * @param {Object} updates - Fields to update
+   * @returns {Promise<Object>} Updated project
+   */
+  async updateProject(projectId, updates) {
+    try {
+      const project = await this.dbManager.get(PROJECTS_STORE, projectId);
+      if (!project) {
+        throw new Error('Project not found');
+      }
+
+      const updatedProject = {
+        ...project,
+        ...updates,
+        id: project.id, // Ensure ID doesn't change
+        lastModified: new Date().toISOString()
+      };
+
+      await this.dbManager.update(PROJECTS_STORE, updatedProject);
+      return updatedProject;
+    } catch (error) {
+      throw new Error(`Failed to update project: ${error.message}`);
+    }
+  }
+
+  /**
+   * Delete a project
+   * @param {string} projectId - Project ID
+   * @returns {Promise<void>}
+   */
+  async deleteProject(projectId) {
+    try {
+      // Prevent deleting last project
+      const allProjects = await this.getAllProjects();
+      if (allProjects.length <= 1) {
+        throw new Error('Cannot delete the last project');
+      }
+
+      await this.dbManager.delete(PROJECTS_STORE, projectId);
+    } catch (error) {
+      throw new Error(`Failed to delete project: ${error.message}`);
+    }
+  }
+
+  /**
+   * Add a sound to a project
+   * @param {string} projectId - Project ID
+   * @param {string} soundId - Sound ID
+   * @returns {Promise<Object>} Updated project
+   */
+  async addSoundToProject(projectId, soundId) {
+    try {
+      const project = await this.getProject(projectId);
+
+      // Don't add if already in project
+      if (project.soundIds.includes(soundId)) {
+        return project;
+      }
+
+      project.soundIds.push(soundId);
+      return await this.updateProject(projectId, { soundIds: project.soundIds });
+    } catch (error) {
+      throw new Error(`Failed to add sound to project: ${error.message}`);
+    }
+  }
+
+  /**
+   * Remove a sound from a project
+   * @param {string} projectId - Project ID
+   * @param {string} soundId - Sound ID
+   * @returns {Promise<Object>} Updated project
+   */
+  async removeSoundFromProject(projectId, soundId) {
+    try {
+      const project = await this.getProject(projectId);
+
+      project.soundIds = project.soundIds.filter(id => id !== soundId);
+      return await this.updateProject(projectId, { soundIds: project.soundIds });
+    } catch (error) {
+      throw new Error(`Failed to remove sound from project: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get all sounds for a project
+   * @param {string} projectId - Project ID (use ALL_PROJECTS to get all sounds)
+   * @returns {Promise<Array>} Array of sounds in the project
+   */
+  async getSoundsByProject(projectId) {
+    try {
+      // Special case: get all sounds
+      if (projectId === ALL_PROJECTS) {
+        return await this.getAllSounds();
+      }
+
+      const project = await this.getProject(projectId);
+      const allSounds = await this.getAllSounds();
+
+      // Filter sounds that are in this project
+      return allSounds.filter(sound => project.soundIds.includes(sound.id));
+    } catch (error) {
+      throw new Error(`Failed to get sounds by project: ${error.message}`);
+    }
   }
 }

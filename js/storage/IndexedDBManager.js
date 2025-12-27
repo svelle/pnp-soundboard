@@ -1,6 +1,6 @@
 // IndexedDB Manager - Low-level database operations
 
-import { DB_NAME, DB_VERSION, SOUNDS_STORE, SETTINGS_STORE } from '../utils/constants.js';
+import { DB_NAME, DB_VERSION, SOUNDS_STORE, SETTINGS_STORE, PROJECTS_STORE, DEFAULT_PROJECT_ID } from '../utils/constants.js';
 
 export class IndexedDBManager {
   constructor() {
@@ -31,17 +31,51 @@ export class IndexedDBManager {
 
       request.onupgradeneeded = (event) => {
         const db = event.target.result;
+        const oldVersion = event.oldVersion;
+        const transaction = event.target.transaction;
 
-        // Create sounds object store
-        if (!db.objectStoreNames.contains(SOUNDS_STORE)) {
-          const soundsStore = db.createObjectStore(SOUNDS_STORE, { keyPath: 'id' });
-          soundsStore.createIndex('category', 'category', { unique: false });
-          soundsStore.createIndex('dateAdded', 'dateAdded', { unique: false });
+        // Version 1: Create sounds and settings stores
+        if (oldVersion < 1) {
+          // Create sounds object store
+          if (!db.objectStoreNames.contains(SOUNDS_STORE)) {
+            const soundsStore = db.createObjectStore(SOUNDS_STORE, { keyPath: 'id' });
+            soundsStore.createIndex('category', 'category', { unique: false });
+            soundsStore.createIndex('dateAdded', 'dateAdded', { unique: false });
+          }
+
+          // Create settings object store
+          if (!db.objectStoreNames.contains(SETTINGS_STORE)) {
+            db.createObjectStore(SETTINGS_STORE, { keyPath: 'id' });
+          }
         }
 
-        // Create settings object store
-        if (!db.objectStoreNames.contains(SETTINGS_STORE)) {
-          db.createObjectStore(SETTINGS_STORE, { keyPath: 'id' });
+        // Version 2: Add projects store and migrate existing sounds
+        if (oldVersion < 2) {
+          // Create projects object store
+          const projectStore = db.createObjectStore(PROJECTS_STORE, { keyPath: 'id' });
+          projectStore.createIndex('name', 'name', { unique: false });
+
+          // Collect all existing sound IDs and create default project
+          const soundsStore = transaction.objectStore(SOUNDS_STORE);
+          const soundIds = [];
+
+          soundsStore.openCursor().onsuccess = (e) => {
+            const cursor = e.target.result;
+            if (cursor) {
+              soundIds.push(cursor.value.id);
+              cursor.continue();
+            } else {
+              // All sounds collected, add default project
+              const projectsStore = transaction.objectStore(PROJECTS_STORE);
+              projectsStore.add({
+                id: DEFAULT_PROJECT_ID,
+                name: 'Default Project',
+                soundIds: soundIds,
+                created: new Date().toISOString(),
+                lastModified: new Date().toISOString()
+              });
+            }
+          };
         }
       };
     });

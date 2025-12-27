@@ -22,7 +22,19 @@ if (!fsSync.existsSync(SOUNDS_DIR)) {
 
 // Initialize metadata file if it doesn't exist
 if (!fsSync.existsSync(METADATA_FILE)) {
-  fsSync.writeFileSync(METADATA_FILE, JSON.stringify([], null, 2));
+  const defaultMetadata = {
+    sounds: [],
+    projects: [
+      {
+        id: 'default',
+        name: 'Default Project',
+        soundIds: [],
+        created: new Date().toISOString(),
+        lastModified: new Date().toISOString()
+      }
+    ]
+  };
+  fsSync.writeFileSync(METADATA_FILE, JSON.stringify(defaultMetadata, null, 2));
 }
 
 // Middleware
@@ -77,10 +89,57 @@ const upload = multer({
 async function loadMetadata() {
   try {
     const data = await fs.readFile(METADATA_FILE, 'utf8');
-    return JSON.parse(data);
+    const metadata = JSON.parse(data);
+
+    // Migrate old format (array) to new format (object with sounds and projects)
+    if (Array.isArray(metadata)) {
+      const allSoundIds = metadata.map(s => s.id);
+      const migratedMetadata = {
+        sounds: metadata,
+        projects: [
+          {
+            id: 'default',
+            name: 'Default Project',
+            soundIds: allSoundIds,
+            created: new Date().toISOString(),
+            lastModified: new Date().toISOString()
+          }
+        ]
+      };
+      // Save migrated format
+      await saveMetadata(migratedMetadata);
+      return migratedMetadata;
+    }
+
+    // Ensure projects exist (for backwards compatibility)
+    if (!metadata.projects) {
+      metadata.projects = [
+        {
+          id: 'default',
+          name: 'Default Project',
+          soundIds: metadata.sounds ? metadata.sounds.map(s => s.id) : [],
+          created: new Date().toISOString(),
+          lastModified: new Date().toISOString()
+        }
+      ];
+      await saveMetadata(metadata);
+    }
+
+    return metadata;
   } catch (error) {
     console.error('Error loading metadata:', error);
-    return [];
+    return {
+      sounds: [],
+      projects: [
+        {
+          id: 'default',
+          name: 'Default Project',
+          soundIds: [],
+          created: new Date().toISOString(),
+          lastModified: new Date().toISOString()
+        }
+      ]
+    };
   }
 }
 
@@ -109,7 +168,7 @@ app.get('/api/mode', (req, res) => {
 app.get('/api/sounds', async (req, res) => {
   try {
     const metadata = await loadMetadata();
-    res.json(metadata);
+    res.json(metadata.sounds);
   } catch (error) {
     res.status(500).json({ error: 'Failed to load sounds' });
   }
@@ -119,7 +178,7 @@ app.get('/api/sounds', async (req, res) => {
 app.get('/api/sounds/:id/file', async (req, res) => {
   try {
     const metadata = await loadMetadata();
-    const sound = metadata.find(s => s.id === req.params.id);
+    const sound = metadata.sounds.find(s => s.id === req.params.id);
 
     if (!sound) {
       return res.status(404).json({ error: 'Sound not found' });
@@ -153,7 +212,7 @@ app.post('/api/sounds', authenticate, upload.single('file'), async (req, res) =>
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    const { name, category, emoji } = req.body;
+    const { name, category, emoji, projectId } = req.body;
 
     // Generate unique ID
     const id = Date.now().toString(36) + Math.random().toString(36).substr(2);
@@ -172,7 +231,16 @@ app.post('/api/sounds', authenticate, upload.single('file'), async (req, res) =>
 
     // Load existing metadata
     const metadata = await loadMetadata();
-    metadata.push(soundMetadata);
+    metadata.sounds.push(soundMetadata);
+
+    // Add to project if specified
+    if (projectId) {
+      const project = metadata.projects.find(p => p.id === projectId);
+      if (project && !project.soundIds.includes(id)) {
+        project.soundIds.push(id);
+        project.lastModified = new Date().toISOString();
+      }
+    }
 
     // Save updated metadata
     await saveMetadata(metadata);
@@ -188,13 +256,13 @@ app.post('/api/sounds', authenticate, upload.single('file'), async (req, res) =>
 app.delete('/api/sounds/:id', authenticate, async (req, res) => {
   try {
     const metadata = await loadMetadata();
-    const soundIndex = metadata.findIndex(s => s.id === req.params.id);
+    const soundIndex = metadata.sounds.findIndex(s => s.id === req.params.id);
 
     if (soundIndex === -1) {
       return res.status(404).json({ error: 'Sound not found' });
     }
 
-    const sound = metadata[soundIndex];
+    const sound = metadata.sounds[soundIndex];
     const filePath = path.join(SOUNDS_DIR, sound.filename);
 
     // Delete file
@@ -204,14 +272,127 @@ app.delete('/api/sounds/:id', authenticate, async (req, res) => {
       console.warn('File not found, continuing with metadata deletion');
     }
 
+    // Remove from all projects
+    metadata.projects.forEach(project => {
+      const soundIdIndex = project.soundIds.indexOf(req.params.id);
+      if (soundIdIndex !== -1) {
+        project.soundIds.splice(soundIdIndex, 1);
+        project.lastModified = new Date().toISOString();
+      }
+    });
+
     // Remove from metadata
-    metadata.splice(soundIndex, 1);
+    metadata.sounds.splice(soundIndex, 1);
     await saveMetadata(metadata);
 
     res.json({ message: 'Sound deleted successfully' });
   } catch (error) {
     console.error('Error deleting sound:', error);
     res.status(500).json({ error: 'Failed to delete sound' });
+  }
+});
+
+// ==================== PROJECT ENDPOINTS ====================
+
+// Get all projects (no auth required for reading)
+app.get('/api/projects', async (req, res) => {
+  try {
+    const metadata = await loadMetadata();
+    res.json(metadata.projects);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to load projects' });
+  }
+});
+
+// Create new project (requires authentication)
+app.post('/api/projects', authenticate, async (req, res) => {
+  try {
+    const { name } = req.body;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: 'Project name is required' });
+    }
+
+    // Generate unique ID
+    const id = Date.now().toString(36) + Math.random().toString(36).substr(2);
+
+    // Create project
+    const project = {
+      id: id,
+      name: name.trim(),
+      soundIds: [],
+      created: new Date().toISOString(),
+      lastModified: new Date().toISOString()
+    };
+
+    // Load existing metadata
+    const metadata = await loadMetadata();
+    metadata.projects.push(project);
+
+    // Save updated metadata
+    await saveMetadata(metadata);
+
+    res.json(project);
+  } catch (error) {
+    console.error('Error creating project:', error);
+    res.status(500).json({ error: 'Failed to create project' });
+  }
+});
+
+// Update project (requires authentication)
+app.put('/api/projects/:id', authenticate, async (req, res) => {
+  try {
+    const { name, soundIds } = req.body;
+
+    const metadata = await loadMetadata();
+    const project = metadata.projects.find(p => p.id === req.params.id);
+
+    if (!project) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    // Update fields
+    if (name !== undefined) {
+      project.name = name.trim();
+    }
+    if (soundIds !== undefined && Array.isArray(soundIds)) {
+      project.soundIds = soundIds;
+    }
+    project.lastModified = new Date().toISOString();
+
+    await saveMetadata(metadata);
+
+    res.json(project);
+  } catch (error) {
+    console.error('Error updating project:', error);
+    res.status(500).json({ error: 'Failed to update project' });
+  }
+});
+
+// Delete project (requires authentication)
+app.delete('/api/projects/:id', authenticate, async (req, res) => {
+  try {
+    const metadata = await loadMetadata();
+
+    // Prevent deleting last project
+    if (metadata.projects.length <= 1) {
+      return res.status(400).json({ error: 'Cannot delete the last project' });
+    }
+
+    const projectIndex = metadata.projects.findIndex(p => p.id === req.params.id);
+
+    if (projectIndex === -1) {
+      return res.status(404).json({ error: 'Project not found' });
+    }
+
+    // Remove project
+    metadata.projects.splice(projectIndex, 1);
+    await saveMetadata(metadata);
+
+    res.json({ message: 'Project deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting project:', error);
+    res.status(500).json({ error: 'Failed to delete project' });
   }
 });
 

@@ -3,6 +3,7 @@
 import { UploadManager } from './UploadManager.js';
 import { VolumeControls } from './VolumeControls.js';
 import { SoundBoard } from './SoundBoard.js';
+import { ProjectManager } from './ProjectManager.js';
 
 export class UIController {
   constructor(audioMixer, audioManager, soundLibrary, mode = 'local', passwordHandler = null) {
@@ -21,11 +22,17 @@ export class UIController {
       this.volumeControls
     );
 
+    this.projectManager = new ProjectManager(
+      this.soundLibrary,
+      (projectId) => this.handleProjectChanged(projectId)
+    );
+
     this.uploadManager = new UploadManager(
       this.soundLibrary,
       (sound) => this.handleUploadComplete(sound),
       this.mode,
-      this.passwordHandler
+      this.passwordHandler,
+      this.projectManager
     );
   }
 
@@ -34,8 +41,9 @@ export class UIController {
    */
   async init() {
     try {
-      // Load existing sounds
-      await this.soundBoard.loadSounds();
+      // Load existing sounds for current project
+      const currentProjectId = this.projectManager.getCurrentProjectId();
+      await this.soundBoard.loadSounds(currentProjectId);
 
       // Setup keyboard shortcuts
       this.setupKeyboardShortcuts();
@@ -46,12 +54,29 @@ export class UIController {
   }
 
   /**
+   * Handle project change
+   * @param {string} projectId - New project ID
+   */
+  async handleProjectChanged(projectId) {
+    try {
+      // Stop all currently playing sounds
+      this.audioManager.stopAll();
+
+      // Reload sounds for the selected project
+      await this.soundBoard.loadSounds(projectId);
+    } catch (error) {
+      console.error('Error changing project:', error);
+    }
+  }
+
+  /**
    * Handle upload complete
    * @param {Object} sound - Uploaded sound data
    */
-  handleUploadComplete(sound) {
-    // Add sound card to board
-    this.soundBoard.addSound(sound);
+  async handleUploadComplete(sound) {
+    // Reload sounds to reflect the new upload
+    const currentProjectId = this.projectManager.getCurrentProjectId();
+    await this.soundBoard.loadSounds(currentProjectId);
   }
 
   /**

@@ -4,11 +4,12 @@ import { CATEGORIES, SUPPORTED_AUDIO_FORMATS, MAX_FILE_SIZE } from '../utils/con
 import { formatFileSize } from '../utils/helpers.js';
 
 export class UploadManager {
-  constructor(soundLibrary, onUploadComplete, mode = 'local', passwordHandler = null) {
+  constructor(soundLibrary, onUploadComplete, mode = 'local', passwordHandler = null, projectManager = null) {
     this.soundLibrary = soundLibrary;
     this.onUploadComplete = onUploadComplete;
     this.mode = mode;
     this.passwordHandler = passwordHandler;
+    this.projectManager = projectManager;
 
     this.modal = document.getElementById('uploadModal');
     this.uploadBtn = document.getElementById('uploadBtn');
@@ -22,6 +23,7 @@ export class UploadManager {
     this.uploadError = document.getElementById('uploadError');
     this.dropZone = document.getElementById('dropZone');
     this.selectedFileName = document.getElementById('selectedFileName');
+    this.uploadProjectSelection = document.getElementById('uploadProjectSelection');
 
     this.selectedCategory = CATEGORIES.SFX;
     this.authConfigured = false;
@@ -89,9 +91,55 @@ export class UploadManager {
     });
   }
 
-  openModal() {
+  async openModal() {
     this.modal.classList.remove('hidden');
     this.resetForm();
+    await this.renderProjectCheckboxes();
+  }
+
+  async renderProjectCheckboxes() {
+    if (!this.projectManager) {
+      this.uploadProjectSelection.innerHTML = '<p class="text-sm text-gray-400">Projects not available</p>';
+      return;
+    }
+
+    try {
+      const projects = await this.soundLibrary.getAllProjects();
+      const currentProjectId = this.projectManager.getCurrentProjectId();
+
+      this.uploadProjectSelection.innerHTML = '';
+
+      if (projects.length === 0) {
+        this.uploadProjectSelection.innerHTML = '<p class="text-sm text-gray-400">No projects yet. Create one first!</p>';
+        return;
+      }
+
+      projects.forEach(project => {
+        const label = document.createElement('label');
+        label.className = 'flex items-center gap-2 cursor-pointer hover:bg-gray-600 p-2 rounded transition';
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.value = project.id;
+        checkbox.className = 'w-4 h-4 cursor-pointer';
+
+        // Pre-select current project if it's not "All Projects"
+        if (currentProjectId !== 'ALL_PROJECTS' && project.id === currentProjectId) {
+          checkbox.checked = true;
+        }
+
+        const text = document.createElement('span');
+        text.className = 'text-sm';
+        text.textContent = project.name;
+
+        label.appendChild(checkbox);
+        label.appendChild(text);
+        this.uploadProjectSelection.appendChild(label);
+      });
+    } catch (error) {
+      console.error('Error rendering project checkboxes:', error);
+      this.uploadProjectSelection.innerHTML = '<p class="text-sm text-red-400">Error loading projects</p>';
+    }
   }
 
   closeModal() {
@@ -240,9 +288,29 @@ export class UploadManager {
         options.emoji = this.emojiInput.value.trim();
       }
 
+      // Get selected projects
+      const selectedProjectIds = [];
+      if (this.projectManager) {
+        const checkboxes = this.uploadProjectSelection.querySelectorAll('input[type="checkbox"]:checked');
+        checkboxes.forEach(cb => selectedProjectIds.push(cb.value));
+      }
+
       this.uploadProgressBar.style.width = '60%';
 
       const sound = await this.soundLibrary.addSound(file, this.selectedCategory, options);
+
+      this.uploadProgressBar.style.width = '80%';
+
+      // Add sound to selected projects
+      if (selectedProjectIds.length > 0) {
+        for (const projectId of selectedProjectIds) {
+          try {
+            await this.soundLibrary.addSoundToProject(projectId, sound.id);
+          } catch (error) {
+            console.error(`Error adding sound to project ${projectId}:`, error);
+          }
+        }
+      }
 
       this.uploadProgressBar.style.width = '100%';
 

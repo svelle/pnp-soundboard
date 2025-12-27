@@ -396,5 +396,5 @@ app.get('/api/health', (req, res) => {
 app.listen(PORT, () => {
   console.log(`🎲 D&D Soundboard server running on port ${PORT}`);
   console.log(`📁 Sounds directory: ${SOUNDS_DIR}`);
-  console.log(`🔐 Authentication: ${SOUNDBOARD_PASSWORD === 'change-me' ? '⚠️  Using default password! Please set SOUNDBOARD_PASSWORD' : 'Enabled'}`);
+  console.log(`🔐 Authentication: Handled by nginx (HTTP Basic Auth)`);
 });

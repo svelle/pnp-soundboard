@@ -1,6 +1,6 @@
 // Sound Library - High-level API for managing sounds
 
-import { SOUNDS_STORE, CATEGORIES, PROJECTS_STORE, ALL_PROJECTS, DEFAULT_PROJECT_ID } from '../utils/constants.js';
+import { SOUNDS_STORE, CATEGORIES, PROJECTS_STORE, PLAYLISTS_STORE, PLAYLIST_TRACKS_STORE, ALL_PROJECTS, DEFAULT_PROJECT_ID } from '../utils/constants.js';
 import { generateUUID, sanitizeFilename } from '../utils/helpers.js';
 
 export class SoundLibrary {
@@ -351,6 +351,262 @@ export class SoundLibrary {
       return allSounds.filter(sound => project.soundIds.includes(sound.id));
     } catch (error) {
       throw new Error(`Failed to get sounds by project: ${error.message}`);
+    }
+  }
+
+  // ==================== PLAYLIST METHODS ====================
+
+  /**
+   * Create a new playlist
+   * @param {string} name - Playlist name
+   * @param {boolean} loop - Whether to loop the playlist
+   * @returns {Promise<Object>} Created playlist
+   */
+  async createPlaylist(name, loop = false) {
+    try {
+      const playlist = {
+        id: generateUUID(),
+        name: name,
+        loop: loop,
+        created: new Date().toISOString(),
+        lastModified: new Date().toISOString()
+      };
+
+      await this.dbManager.add(PLAYLISTS_STORE, playlist);
+      return playlist;
+    } catch (error) {
+      throw new Error(`Failed to create playlist: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get a playlist by ID with its tracks (including sound metadata)
+   * @param {string} playlistId - Playlist ID
+   * @returns {Promise<Object>} Playlist object with tracks
+   */
+  async getPlaylist(playlistId) {
+    try {
+      const playlist = await this.dbManager.get(PLAYLISTS_STORE, playlistId);
+      if (!playlist) {
+        throw new Error('Playlist not found');
+      }
+
+      // Get all tracks for this playlist
+      const tracks = await this.dbManager.getAllByIndex(PLAYLIST_TRACKS_STORE, 'playlistId', playlistId);
+
+      // Sort tracks by order
+      tracks.sort((a, b) => a.order - b.order);
+
+      // Get all sounds to join metadata
+      const allSounds = await this.getAllSounds();
+      const soundsMap = new Map(allSounds.map(s => [s.id, s]));
+
+      // Enrich tracks with sound metadata
+      const enrichedTracks = tracks.map(track => ({
+        ...track,
+        sound: soundsMap.get(track.soundId) || null
+      }));
+
+      return {
+        ...playlist,
+        tracks: enrichedTracks
+      };
+    } catch (error) {
+      throw new Error(`Failed to get playlist: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get all playlists, sorted by name
+   * @returns {Promise<Array>} Array of all playlists (without tracks)
+   */
+  async getAllPlaylists() {
+    try {
+      const playlists = await this.dbManager.getAll(PLAYLISTS_STORE);
+      // Sort by name alphabetically
+      return playlists.sort((a, b) => a.name.localeCompare(b.name));
+    } catch (error) {
+      throw new Error(`Failed to get all playlists: ${error.message}`);
+    }
+  }
+
+  /**
+   * Update a playlist
+   * @param {string} playlistId - Playlist ID
+   * @param {Object} updates - Fields to update (name, loop)
+   * @returns {Promise<Object>} Updated playlist
+   */
+  async updatePlaylist(playlistId, updates) {
+    try {
+      const playlist = await this.dbManager.get(PLAYLISTS_STORE, playlistId);
+      if (!playlist) {
+        throw new Error('Playlist not found');
+      }
+
+      const updatedPlaylist = {
+        ...playlist,
+        ...updates,
+        id: playlist.id, // Ensure ID doesn't change
+        lastModified: new Date().toISOString()
+      };
+
+      await this.dbManager.update(PLAYLISTS_STORE, updatedPlaylist);
+      return updatedPlaylist;
+    } catch (error) {
+      throw new Error(`Failed to update playlist: ${error.message}`);
+    }
+  }
+
+  /**
+   * Delete a playlist
+   * @param {string} playlistId - Playlist ID
+   * @returns {Promise<void>}
+   */
+  async deletePlaylist(playlistId) {
+    try {
+      // Delete the playlist
+      await this.dbManager.delete(PLAYLISTS_STORE, playlistId);
+
+      // Delete all tracks for this playlist
+      const tracks = await this.dbManager.getAllByIndex(PLAYLIST_TRACKS_STORE, 'playlistId', playlistId);
+      for (const track of tracks) {
+        await this.dbManager.delete(PLAYLIST_TRACKS_STORE, track.id);
+      }
+    } catch (error) {
+      throw new Error(`Failed to delete playlist: ${error.message}`);
+    }
+  }
+
+  /**
+   * Add a track to a playlist
+   * @param {string} playlistId - Playlist ID
+   * @param {string} soundId - Sound ID
+   * @param {Object} options - Track options (volume, pauseMin, pauseMax)
+   * @returns {Promise<Object>} Created track
+   */
+  async addTrackToPlaylist(playlistId, soundId, options = {}) {
+    try {
+      // Verify playlist exists
+      await this.getPlaylist(playlistId);
+
+      // Get current tracks to determine next order
+      const existingTracks = await this.dbManager.getAllByIndex(PLAYLIST_TRACKS_STORE, 'playlistId', playlistId);
+      const nextOrder = existingTracks.length;
+
+      const track = {
+        id: generateUUID(),
+        playlistId: playlistId,
+        soundId: soundId,
+        order: nextOrder,
+        volume: options.volume !== undefined ? options.volume : 0.8,
+        pauseMin: options.pauseMin !== undefined ? options.pauseMin : 0,
+        pauseMax: options.pauseMax !== undefined ? options.pauseMax : 0,
+        addedAt: new Date().toISOString()
+      };
+
+      await this.dbManager.add(PLAYLIST_TRACKS_STORE, track);
+
+      // Update playlist's lastModified
+      await this.updatePlaylist(playlistId, {});
+
+      return track;
+    } catch (error) {
+      throw new Error(`Failed to add track to playlist: ${error.message}`);
+    }
+  }
+
+  /**
+   * Remove a track from a playlist
+   * @param {string} playlistId - Playlist ID
+   * @param {string} trackId - Track ID
+   * @returns {Promise<void>}
+   */
+  async removeTrackFromPlaylist(playlistId, trackId) {
+    try {
+      const track = await this.dbManager.get(PLAYLIST_TRACKS_STORE, trackId);
+      if (!track || track.playlistId !== playlistId) {
+        throw new Error('Track not found in this playlist');
+      }
+
+      // Delete the track
+      await this.dbManager.delete(PLAYLIST_TRACKS_STORE, trackId);
+
+      // Reorder remaining tracks
+      const remainingTracks = await this.dbManager.getAllByIndex(PLAYLIST_TRACKS_STORE, 'playlistId', playlistId);
+      remainingTracks.sort((a, b) => a.order - b.order);
+
+      // Update order for remaining tracks
+      for (let i = 0; i < remainingTracks.length; i++) {
+        if (remainingTracks[i].order !== i) {
+          remainingTracks[i].order = i;
+          await this.dbManager.update(PLAYLIST_TRACKS_STORE, remainingTracks[i]);
+        }
+      }
+
+      // Update playlist's lastModified
+      await this.updatePlaylist(playlistId, {});
+    } catch (error) {
+      throw new Error(`Failed to remove track from playlist: ${error.message}`);
+    }
+  }
+
+  /**
+   * Update a playlist track
+   * @param {string} playlistId - Playlist ID
+   * @param {string} trackId - Track ID
+   * @param {Object} updates - Fields to update (volume, pauseMin, pauseMax)
+   * @returns {Promise<Object>} Updated track
+   */
+  async updatePlaylistTrack(playlistId, trackId, updates) {
+    try {
+      const track = await this.dbManager.get(PLAYLIST_TRACKS_STORE, trackId);
+      if (!track || track.playlistId !== playlistId) {
+        throw new Error('Track not found in this playlist');
+      }
+
+      const updatedTrack = {
+        ...track,
+        ...updates,
+        id: track.id, // Ensure ID doesn't change
+        playlistId: track.playlistId, // Ensure playlistId doesn't change
+        soundId: track.soundId // Ensure soundId doesn't change
+      };
+
+      await this.dbManager.update(PLAYLIST_TRACKS_STORE, updatedTrack);
+
+      // Update playlist's lastModified
+      await this.updatePlaylist(playlistId, {});
+
+      return updatedTrack;
+    } catch (error) {
+      throw new Error(`Failed to update playlist track: ${error.message}`);
+    }
+  }
+
+  /**
+   * Reorder playlist tracks
+   * @param {string} playlistId - Playlist ID
+   * @param {Array<string>} trackIds - Array of track IDs in new order
+   * @returns {Promise<void>}
+   */
+  async reorderPlaylistTracks(playlistId, trackIds) {
+    try {
+      // Verify playlist exists
+      await this.getPlaylist(playlistId);
+
+      // Update order for each track
+      for (let i = 0; i < trackIds.length; i++) {
+        const track = await this.dbManager.get(PLAYLIST_TRACKS_STORE, trackIds[i]);
+        if (track && track.playlistId === playlistId) {
+          track.order = i;
+          await this.dbManager.update(PLAYLIST_TRACKS_STORE, track);
+        }
+      }
+
+      // Update playlist's lastModified
+      await this.updatePlaylist(playlistId, {});
+    } catch (error) {
+      throw new Error(`Failed to reorder playlist tracks: ${error.message}`);
     }
   }
 }

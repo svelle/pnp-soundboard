@@ -151,11 +151,6 @@ export class SoundBoard {
     card.className = 'sound-card';
     card.dataset.soundId = sound.id;
 
-    // Emoji
-    const emoji = document.createElement('div');
-    emoji.className = 'sound-emoji';
-    emoji.textContent = sound.emoji || '🔊';
-
     // Name
     const name = document.createElement('div');
     name.className = 'sound-name';
@@ -211,6 +206,12 @@ export class SoundBoard {
     projectsBtn.innerHTML = '📁';
     projectsBtn.title = 'Assign to Projects';
 
+    // Add to Playlist button
+    const playlistBtn = document.createElement('button');
+    playlistBtn.className = 'btn btn-secondary playlist-btn';
+    playlistBtn.innerHTML = '📋';
+    playlistBtn.title = 'Add to Playlist';
+
     // Delete button
     const deleteBtn = document.createElement('button');
     deleteBtn.className = 'btn btn-danger delete-btn';
@@ -220,12 +221,12 @@ export class SoundBoard {
     // Add buttons
     buttons.appendChild(playPauseBtn);
     buttons.appendChild(stopBtn);
-    if (sound.category === CATEGORIES.MUSIC || sound.category === CATEGORIES.AMBIENCE) {
-      buttons.appendChild(loopBtn);
-      buttons.appendChild(pauseBtn);
-    }
+    // All sound types can now loop and use pause intervals
+    buttons.appendChild(loopBtn);
+    buttons.appendChild(pauseBtn);
     buttons.appendChild(renameBtn);
     buttons.appendChild(projectsBtn);
+    buttons.appendChild(playlistBtn);
     buttons.appendChild(deleteBtn);
 
     controls.appendChild(buttons);
@@ -281,38 +282,36 @@ export class SoundBoard {
     card.volumeSlider = volumeSlider;
     card.getCurrentVolume = () => currentVolume;
 
-    // Progress bar for music and ambience
-    if (sound.category === CATEGORIES.MUSIC || sound.category === CATEGORIES.AMBIENCE) {
-      const progressContainer = document.createElement('div');
-      progressContainer.className = 'progress-container mt-2';
+    // Progress bar for all sound types
+    const progressContainer = document.createElement('div');
+    progressContainer.className = 'progress-container mt-2';
 
-      const progressLabel = document.createElement('div');
-      progressLabel.className = 'text-xs text-gray-400 mb-1 flex justify-between';
-      progressLabel.innerHTML = `
-        <span>Progress</span>
-        <span class="progress-time">0:00 / ${formatDuration(sound.duration || 0)}</span>
-      `;
+    const progressLabel = document.createElement('div');
+    progressLabel.className = 'text-xs text-gray-400 mb-1 flex justify-between';
+    progressLabel.innerHTML = `
+      <span>Progress</span>
+      <span class="progress-time">0:00 / ${formatDuration(sound.duration || 0)}</span>
+    `;
 
-      const progressBarBg = document.createElement('div');
-      progressBarBg.className = 'progress-bar-bg';
+    const progressBarBg = document.createElement('div');
+    progressBarBg.className = 'progress-bar-bg';
 
-      const progressBarFill = document.createElement('div');
-      progressBarFill.className = 'progress-bar-fill';
-      progressBarFill.style.width = '0%';
+    const progressBarFill = document.createElement('div');
+    progressBarFill.className = 'progress-bar-fill';
+    progressBarFill.style.width = '0%';
 
-      progressBarBg.appendChild(progressBarFill);
-      progressContainer.appendChild(progressLabel);
-      progressContainer.appendChild(progressBarBg);
-      controls.appendChild(progressContainer);
+    progressBarBg.appendChild(progressBarFill);
+    progressContainer.appendChild(progressLabel);
+    progressContainer.appendChild(progressBarBg);
+    controls.appendChild(progressContainer);
 
-      // Store progress references
-      card.progressBarFill = progressBarFill;
-      card.progressTimeLabel = progressLabel.querySelector('.progress-time');
-      card.soundDuration = sound.duration || 0;
-    }
+    // Store progress references
+    card.progressBarFill = progressBarFill;
+    card.progressTimeLabel = progressLabel.querySelector('.progress-time');
+    card.soundDuration = sound.duration || 0;
 
-    // Pause interval controls (hidden by default)
-    if (sound.category === CATEGORIES.MUSIC || sound.category === CATEGORIES.AMBIENCE) {
+    // Pause interval controls (hidden by default) - now available for all sound types
+    {
       const pauseControls = document.createElement('div');
       pauseControls.className = 'pause-controls hidden mt-2';
 
@@ -359,7 +358,6 @@ export class SoundBoard {
     }
 
     // Assemble card
-    card.appendChild(emoji);
     card.appendChild(name);
     if (duration.textContent) {
       card.appendChild(duration);
@@ -381,30 +379,53 @@ export class SoundBoard {
       playPauseBtn.title = 'Play';
     });
 
-    if (sound.category === CATEGORIES.MUSIC || sound.category === CATEGORIES.AMBIENCE) {
-      loopBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        loopBtn.classList.toggle('active');
-      });
+    // Loop and pause button listeners for all sound types
+    loopBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      loopBtn.classList.toggle('active');
+    });
 
-      pauseBtn.addEventListener('click', (e) => {
+    pauseBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      pauseBtn.classList.toggle('active');
+
+      // Update pause button title with current interval when active
+      if (pauseBtn.classList.contains('active')) {
+        const min = card.pauseMinInput.value || 5;
+        const max = card.pauseMaxInput.value || 15;
+        pauseBtn.title = `Random pauses: ${min}-${max}s between loops`;
+      } else {
+        pauseBtn.title = 'Random pauses between loops';
+      }
+
+      // Show/hide pause interval inputs
+      if (card.pauseControls) {
+        card.pauseControls.classList.toggle('hidden');
+      }
+    });
+
+    // Prevent input events from bubbling and update pause button title
+    if (card.pauseMinInput) {
+      card.pauseMinInput.addEventListener('click', (e) => e.stopPropagation());
+      card.pauseMinInput.addEventListener('input', (e) => {
         e.stopPropagation();
-        pauseBtn.classList.toggle('active');
-        // Show/hide pause interval inputs
-        if (card.pauseControls) {
-          card.pauseControls.classList.toggle('hidden');
+        if (pauseBtn.classList.contains('active')) {
+          const min = card.pauseMinInput.value || 5;
+          const max = card.pauseMaxInput.value || 15;
+          pauseBtn.title = `Random pauses: ${min}-${max}s between loops`;
         }
       });
-
-      // Prevent input events from bubbling
-      if (card.pauseMinInput) {
-        card.pauseMinInput.addEventListener('click', (e) => e.stopPropagation());
-        card.pauseMinInput.addEventListener('input', (e) => e.stopPropagation());
-      }
-      if (card.pauseMaxInput) {
-        card.pauseMaxInput.addEventListener('click', (e) => e.stopPropagation());
-        card.pauseMaxInput.addEventListener('input', (e) => e.stopPropagation());
-      }
+    }
+    if (card.pauseMaxInput) {
+      card.pauseMaxInput.addEventListener('click', (e) => e.stopPropagation());
+      card.pauseMaxInput.addEventListener('input', (e) => {
+        e.stopPropagation();
+        if (pauseBtn.classList.contains('active')) {
+          const min = card.pauseMinInput.value || 5;
+          const max = card.pauseMaxInput.value || 15;
+          pauseBtn.title = `Random pauses: ${min}-${max}s between loops`;
+        }
+      });
     }
 
     renameBtn.addEventListener('click', (e) => {
@@ -415,6 +436,11 @@ export class SoundBoard {
     projectsBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       this.assignProjects(sound.id, sound.name);
+    });
+
+    playlistBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.addToPlaylist(sound.id, sound.name);
     });
 
     deleteBtn.addEventListener('click', (e) => {
@@ -773,6 +799,17 @@ export class SoundBoard {
   }
 
   /**
+   * Add sound to playlist
+   * @param {string} soundId - Sound ID
+   * @param {string} soundName - Sound name
+   */
+  addToPlaylist(soundId, soundName) {
+    if (this.playlistAssignmentManager) {
+      this.playlistAssignmentManager.openModal(soundId, soundName);
+    }
+  }
+
+  /**
    * Update sound name in the UI
    * @param {string} soundId - Sound ID
    * @param {string} newName - New sound name
@@ -802,6 +839,14 @@ export class SoundBoard {
    */
   setProjectAssignmentManager(projectAssignmentManager) {
     this.projectAssignmentManager = projectAssignmentManager;
+  }
+
+  /**
+   * Set playlist assignment manager
+   * @param {PlaylistAssignmentManager} playlistAssignmentManager - Playlist assignment manager instance
+   */
+  setPlaylistAssignmentManager(playlistAssignmentManager) {
+    this.playlistAssignmentManager = playlistAssignmentManager;
   }
 
   /**

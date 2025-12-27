@@ -6,6 +6,10 @@ import { SoundBoard } from './SoundBoard.js';
 import { ProjectManager } from './ProjectManager.js';
 import { RenameManager } from './RenameManager.js';
 import { ProjectAssignmentManager } from './ProjectAssignmentManager.js';
+import { PlaylistManager } from './PlaylistManager.js';
+import { PlaylistBuilder } from './PlaylistBuilder.js';
+import { PlaylistPlayer } from './PlaylistPlayer.js';
+import { PlaylistAssignmentManager } from './PlaylistAssignmentManager.js';
 
 export class UIController {
   constructor(audioMixer, audioManager, soundLibrary, mode = 'local') {
@@ -45,9 +49,26 @@ export class UIController {
       (soundId) => this.handleProjectAssignmentComplete(soundId)
     );
 
+    // Initialize playlist components
+    this.playlistBuilder = new PlaylistBuilder(this.soundLibrary);
+
+    this.playlistManager = new PlaylistManager(
+      this.soundLibrary,
+      this.audioManager,
+      (playlistId) => this.playlistBuilder.openBuilder(playlistId)
+    );
+
+    this.playlistPlayer = new PlaylistPlayer(this.audioManager);
+
+    this.playlistAssignmentManager = new PlaylistAssignmentManager(
+      this.soundLibrary,
+      (soundId) => this.handlePlaylistAssignmentComplete(soundId)
+    );
+
     // Wire up managers to sound board
     this.soundBoard.setRenameManager(this.renameManager);
     this.soundBoard.setProjectAssignmentManager(this.projectAssignmentManager);
+    this.soundBoard.setPlaylistAssignmentManager(this.playlistAssignmentManager);
   }
 
   /**
@@ -114,6 +135,17 @@ export class UIController {
     if (currentProjectId !== 'ALL_PROJECTS') {
       // Reload sounds for current project
       await this.soundBoard.loadSounds(currentProjectId);
+    }
+  }
+
+  /**
+   * Handle playlist assignment complete
+   * @param {string} soundId - Sound ID
+   */
+  async handlePlaylistAssignmentComplete(soundId) {
+    // Refresh playlist manager to show updated track counts
+    if (this.playlistManager) {
+      await this.playlistManager.refresh();
     }
   }
 

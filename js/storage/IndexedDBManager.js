@@ -1,6 +1,6 @@
 // IndexedDB Manager - Low-level database operations
 
-import { DB_NAME, DB_VERSION, SOUNDS_STORE, SETTINGS_STORE, PROJECTS_STORE, DEFAULT_PROJECT_ID } from '../utils/constants.js';
+import { DB_NAME, DB_VERSION, SOUNDS_STORE, SETTINGS_STORE, PROJECTS_STORE, PLAYLISTS_STORE, PLAYLIST_TRACKS_STORE, DEFAULT_PROJECT_ID } from '../utils/constants.js';
 
 export class IndexedDBManager {
   constructor() {
@@ -76,6 +76,27 @@ export class IndexedDBManager {
               });
             }
           };
+        }
+
+        // Version 3: Add playlists and playlist_tracks stores
+        if (oldVersion < 3) {
+          // Create playlists object store
+          const playlistsStore = db.createObjectStore(PLAYLISTS_STORE, { keyPath: 'id' });
+          playlistsStore.createIndex('name', 'name', { unique: false });
+
+          // Create playlist_tracks object store
+          const playlistTracksStore = db.createObjectStore(PLAYLIST_TRACKS_STORE, { keyPath: 'id' });
+          playlistTracksStore.createIndex('playlistId', 'playlistId', { unique: false });
+          playlistTracksStore.createIndex('order', 'order', { unique: false });
+
+          // Create a default empty playlist
+          playlistsStore.add({
+            id: 'default-playlist',
+            name: 'My First Playlist',
+            loop: false,
+            created: new Date().toISOString(),
+            lastModified: new Date().toISOString()
+          });
         }
       };
     });

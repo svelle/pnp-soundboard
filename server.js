@@ -444,6 +444,302 @@ app.delete('/api/projects/:id', async (req, res) => {
   }
 });
 
+// ==================== PLAYLIST ENDPOINTS ====================
+
+// Get all playlists (no auth required for reading)
+app.get('/api/playlists', async (req, res) => {
+  try {
+    const metadata = await loadMetadata();
+    // Ensure playlists array exists
+    if (!metadata.playlists) {
+      metadata.playlists = [];
+    }
+    res.json(metadata.playlists);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to load playlists' });
+  }
+});
+
+// Get specific playlist (no auth required for reading)
+app.get('/api/playlists/:id', async (req, res) => {
+  try {
+    const metadata = await loadMetadata();
+    const playlist = metadata.playlists ? metadata.playlists.find(p => p.id === req.params.id) : null;
+
+    if (!playlist) {
+      return res.status(404).json({ error: 'Playlist not found' });
+    }
+
+    res.json(playlist);
+  } catch (error) {
+    console.error('Error getting playlist:', error);
+    res.status(500).json({ error: 'Failed to get playlist' });
+  }
+});
+
+// Create new playlist
+app.post('/api/playlists', async (req, res) => {
+  try {
+    const { name, loop } = req.body;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: 'Playlist name is required' });
+    }
+
+    // Generate unique ID
+    const id = Date.now().toString(36) + Math.random().toString(36).substr(2);
+
+    // Create playlist
+    const playlist = {
+      id: id,
+      name: name.trim(),
+      loop: loop || false,
+      tracks: [],
+      created: new Date().toISOString(),
+      lastModified: new Date().toISOString()
+    };
+
+    // Load existing metadata
+    const metadata = await loadMetadata();
+    if (!metadata.playlists) {
+      metadata.playlists = [];
+    }
+    metadata.playlists.push(playlist);
+
+    // Save updated metadata
+    await saveMetadata(metadata);
+
+    res.json(playlist);
+  } catch (error) {
+    console.error('Error creating playlist:', error);
+    res.status(500).json({ error: 'Failed to create playlist' });
+  }
+});
+
+// Update playlist
+app.put('/api/playlists/:id', async (req, res) => {
+  try {
+    const { name, loop } = req.body;
+
+    const metadata = await loadMetadata();
+    const playlist = metadata.playlists ? metadata.playlists.find(p => p.id === req.params.id) : null;
+
+    if (!playlist) {
+      return res.status(404).json({ error: 'Playlist not found' });
+    }
+
+    // Update fields
+    if (name !== undefined) {
+      playlist.name = name.trim();
+    }
+    if (loop !== undefined) {
+      playlist.loop = loop;
+    }
+    playlist.lastModified = new Date().toISOString();
+
+    await saveMetadata(metadata);
+
+    res.json(playlist);
+  } catch (error) {
+    console.error('Error updating playlist:', error);
+    res.status(500).json({ error: 'Failed to update playlist' });
+  }
+});
+
+// Delete playlist
+app.delete('/api/playlists/:id', async (req, res) => {
+  try {
+    const metadata = await loadMetadata();
+
+    if (!metadata.playlists) {
+      return res.status(404).json({ error: 'Playlist not found' });
+    }
+
+    const playlistIndex = metadata.playlists.findIndex(p => p.id === req.params.id);
+
+    if (playlistIndex === -1) {
+      return res.status(404).json({ error: 'Playlist not found' });
+    }
+
+    // Remove playlist
+    metadata.playlists.splice(playlistIndex, 1);
+    await saveMetadata(metadata);
+
+    res.json({ message: 'Playlist deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting playlist:', error);
+    res.status(500).json({ error: 'Failed to delete playlist' });
+  }
+});
+
+// Add track to playlist
+app.post('/api/playlists/:id/tracks', async (req, res) => {
+  try {
+    const { soundId, volume, pauseMin, pauseMax } = req.body;
+
+    if (!soundId) {
+      return res.status(400).json({ error: 'Sound ID is required' });
+    }
+
+    const metadata = await loadMetadata();
+    const playlist = metadata.playlists ? metadata.playlists.find(p => p.id === req.params.id) : null;
+
+    if (!playlist) {
+      return res.status(404).json({ error: 'Playlist not found' });
+    }
+
+    // Ensure tracks array exists
+    if (!playlist.tracks) {
+      playlist.tracks = [];
+    }
+
+    // Generate unique track ID
+    const trackId = Date.now().toString(36) + Math.random().toString(36).substr(2);
+
+    // Create track
+    const track = {
+      id: trackId,
+      soundId: soundId,
+      order: playlist.tracks.length,
+      volume: volume !== undefined ? volume : 0.8,
+      pauseMin: pauseMin !== undefined ? pauseMin : 0,
+      pauseMax: pauseMax !== undefined ? pauseMax : 0,
+      addedAt: new Date().toISOString()
+    };
+
+    playlist.tracks.push(track);
+    playlist.lastModified = new Date().toISOString();
+
+    await saveMetadata(metadata);
+
+    res.json(track);
+  } catch (error) {
+    console.error('Error adding track to playlist:', error);
+    res.status(500).json({ error: 'Failed to add track to playlist' });
+  }
+});
+
+// Update playlist track
+app.put('/api/playlists/:playlistId/tracks/:trackId', async (req, res) => {
+  try {
+    const { volume, pauseMin, pauseMax } = req.body;
+
+    const metadata = await loadMetadata();
+    const playlist = metadata.playlists ? metadata.playlists.find(p => p.id === req.params.playlistId) : null;
+
+    if (!playlist) {
+      return res.status(404).json({ error: 'Playlist not found' });
+    }
+
+    const track = playlist.tracks ? playlist.tracks.find(t => t.id === req.params.trackId) : null;
+
+    if (!track) {
+      return res.status(404).json({ error: 'Track not found' });
+    }
+
+    // Update fields
+    if (volume !== undefined) {
+      track.volume = volume;
+    }
+    if (pauseMin !== undefined) {
+      track.pauseMin = pauseMin;
+    }
+    if (pauseMax !== undefined) {
+      track.pauseMax = pauseMax;
+    }
+
+    playlist.lastModified = new Date().toISOString();
+
+    await saveMetadata(metadata);
+
+    res.json(track);
+  } catch (error) {
+    console.error('Error updating playlist track:', error);
+    res.status(500).json({ error: 'Failed to update playlist track' });
+  }
+});
+
+// Delete track from playlist
+app.delete('/api/playlists/:playlistId/tracks/:trackId', async (req, res) => {
+  try {
+    const metadata = await loadMetadata();
+    const playlist = metadata.playlists ? metadata.playlists.find(p => p.id === req.params.playlistId) : null;
+
+    if (!playlist) {
+      return res.status(404).json({ error: 'Playlist not found' });
+    }
+
+    if (!playlist.tracks) {
+      return res.status(404).json({ error: 'Track not found' });
+    }
+
+    const trackIndex = playlist.tracks.findIndex(t => t.id === req.params.trackId);
+
+    if (trackIndex === -1) {
+      return res.status(404).json({ error: 'Track not found' });
+    }
+
+    // Remove track
+    playlist.tracks.splice(trackIndex, 1);
+
+    // Reorder remaining tracks
+    playlist.tracks.forEach((track, index) => {
+      track.order = index;
+    });
+
+    playlist.lastModified = new Date().toISOString();
+
+    await saveMetadata(metadata);
+
+    res.json({ message: 'Track deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting track from playlist:', error);
+    res.status(500).json({ error: 'Failed to delete track from playlist' });
+  }
+});
+
+// Reorder playlist tracks
+app.put('/api/playlists/:id/reorder', async (req, res) => {
+  try {
+    const { trackIds } = req.body;
+
+    if (!Array.isArray(trackIds)) {
+      return res.status(400).json({ error: 'trackIds must be an array' });
+    }
+
+    const metadata = await loadMetadata();
+    const playlist = metadata.playlists ? metadata.playlists.find(p => p.id === req.params.id) : null;
+
+    if (!playlist) {
+      return res.status(404).json({ error: 'Playlist not found' });
+    }
+
+    if (!playlist.tracks) {
+      playlist.tracks = [];
+    }
+
+    // Reorder tracks based on trackIds array
+    const reorderedTracks = [];
+    trackIds.forEach((trackId, index) => {
+      const track = playlist.tracks.find(t => t.id === trackId);
+      if (track) {
+        track.order = index;
+        reorderedTracks.push(track);
+      }
+    });
+
+    playlist.tracks = reorderedTracks;
+    playlist.lastModified = new Date().toISOString();
+
+    await saveMetadata(metadata);
+
+    res.json(playlist);
+  } catch (error) {
+    console.error('Error reordering playlist tracks:', error);
+    res.status(500).json({ error: 'Failed to reorder playlist tracks' });
+  }
+});
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', mode: 'server' });

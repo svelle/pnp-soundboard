@@ -467,4 +467,245 @@ export class ServerStorage {
       throw error;
     }
   }
+
+  // ==================== PLAYLIST METHODS ====================
+
+  /**
+   * Get all playlists from server
+   * @returns {Promise<Array>} Array of playlists
+   */
+  async getAllPlaylists() {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/playlists`);
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch playlists from server');
+      }
+
+      const playlists = await response.json();
+      // Sort by name alphabetically
+      return playlists.sort((a, b) => a.name.localeCompare(b.name));
+    } catch (error) {
+      console.error('Error fetching playlists:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get a playlist by ID (with tracks)
+   * @param {string} playlistId - Playlist ID
+   * @returns {Promise<Object>} Playlist object with tracks
+   */
+  async getPlaylist(playlistId) {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/playlists/${playlistId}`);
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch playlist from server');
+      }
+
+      const playlist = await response.json();
+
+      // Enrich tracks with sound metadata
+      if (playlist.tracks && playlist.tracks.length > 0) {
+        const allSounds = await this.getAllSounds();
+        const soundsMap = new Map(allSounds.map(s => [s.id, s]));
+
+        playlist.tracks = playlist.tracks.map(track => ({
+          ...track,
+          sound: soundsMap.get(track.soundId) || null
+        }));
+      }
+
+      return playlist;
+    } catch (error) {
+      console.error('Error fetching playlist:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Create a new playlist
+   * @param {string} name - Playlist name
+   * @param {boolean} loop - Whether to loop the playlist
+   * @returns {Promise<Object>} Created playlist
+   */
+  async createPlaylist(name, loop = false) {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/playlists`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ name, loop })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create playlist');
+      }
+
+      const playlist = await response.json();
+      return playlist;
+    } catch (error) {
+      console.error('Error creating playlist:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update a playlist
+   * @param {string} playlistId - Playlist ID
+   * @param {Object} updates - Fields to update
+   * @returns {Promise<Object>} Updated playlist
+   */
+  async updatePlaylist(playlistId, updates) {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/playlists/${playlistId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(updates)
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update playlist');
+      }
+
+      const playlist = await response.json();
+      return playlist;
+    } catch (error) {
+      console.error('Error updating playlist:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete a playlist
+   * @param {string} playlistId - Playlist ID
+   * @returns {Promise<void>}
+   */
+  async deletePlaylist(playlistId) {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/playlists/${playlistId}`, {
+        method: 'DELETE'
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete playlist');
+      }
+    } catch (error) {
+      console.error('Error deleting playlist:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Add a track to a playlist
+   * @param {string} playlistId - Playlist ID
+   * @param {string} soundId - Sound ID
+   * @param {Object} options - Track options (volume, pauseMin, pauseMax)
+   * @returns {Promise<Object>} Created track
+   */
+  async addTrackToPlaylist(playlistId, soundId, options = {}) {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/playlists/${playlistId}/tracks`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          soundId,
+          volume: options.volume !== undefined ? options.volume : 0.8,
+          pauseMin: options.pauseMin !== undefined ? options.pauseMin : 0,
+          pauseMax: options.pauseMax !== undefined ? options.pauseMax : 0
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to add track to playlist');
+      }
+
+      const track = await response.json();
+      return track;
+    } catch (error) {
+      console.error('Error adding track to playlist:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Remove a track from a playlist
+   * @param {string} playlistId - Playlist ID
+   * @param {string} trackId - Track ID
+   * @returns {Promise<void>}
+   */
+  async removeTrackFromPlaylist(playlistId, trackId) {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/playlists/${playlistId}/tracks/${trackId}`, {
+        method: 'DELETE'
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to remove track from playlist');
+      }
+    } catch (error) {
+      console.error('Error removing track from playlist:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Update a playlist track
+   * @param {string} playlistId - Playlist ID
+   * @param {string} trackId - Track ID
+   * @param {Object} updates - Fields to update (volume, pauseMin, pauseMax)
+   * @returns {Promise<Object>} Updated track
+   */
+  async updatePlaylistTrack(playlistId, trackId, updates) {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/playlists/${playlistId}/tracks/${trackId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(updates)
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update playlist track');
+      }
+
+      const track = await response.json();
+      return track;
+    } catch (error) {
+      console.error('Error updating playlist track:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Reorder playlist tracks
+   * @param {string} playlistId - Playlist ID
+   * @param {Array<string>} trackIds - Array of track IDs in new order
+   * @returns {Promise<void>}
+   */
+  async reorderPlaylistTracks(playlistId, trackIds) {
+    try {
+      const response = await fetch(`${this.baseUrl}/api/playlists/${playlistId}/reorder`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ trackIds })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to reorder playlist tracks');
+      }
+    } catch (error) {
+      console.error('Error reordering playlist tracks:', error);
+      throw error;
+    }
+  }
 }

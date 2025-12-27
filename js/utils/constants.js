@@ -1,10 +1,12 @@
 // Application constants
 
 export const DB_NAME = 'dnd-soundboard-db';
-export const DB_VERSION = 2;
+export const DB_VERSION = 3;
 export const SOUNDS_STORE = 'sounds';
 export const SETTINGS_STORE = 'settings';
 export const PROJECTS_STORE = 'projects';
+export const PLAYLISTS_STORE = 'playlists';
+export const PLAYLIST_TRACKS_STORE = 'playlist_tracks';
 
 export const CATEGORIES = {
   SFX: 'sfx',

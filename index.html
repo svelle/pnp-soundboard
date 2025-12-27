@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>D&D Soundboard</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="styles/main.css">
+
+  <!-- Tailwind Config -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#8b5cf6',
+            secondary: '#6366f1',
+            dark: '#1f2937',
+            darker: '#111827',
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-darker text-white min-h-screen">
+
+  <!-- Header -->
+  <header class="bg-dark border-b border-gray-700 sticky top-0 z-50">
+    <div class="container mx-auto px-4 py-4">
+      <div class="flex items-center justify-between">
+        <h1 class="text-2xl font-bold text-primary">🎲 D&D Soundboard</h1>
+        <div class="flex items-center gap-3">
+          <button id="stopAllBtn" class="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-sm font-medium transition hidden">
+            ⏹️ Stop All
+          </button>
+          <button id="uploadBtn" class="px-4 py-2 bg-primary hover:bg-purple-700 rounded-lg text-sm font-medium transition">
+            ⬆️ Upload
+          </button>
+        </div>
+      </div>
+
+      <!-- Master Volume -->
+      <div class="mt-4" id="masterVolumeContainer">
+        <label class="block text-sm font-medium text-gray-300 mb-2">
+          Master Volume: <span id="masterVolumeValue">80%</span>
+        </label>
+        <input
+          type="range"
+          id="masterVolumeSlider"
+          min="0"
+          max="100"
+          value="80"
+          class="w-full h-3 rounded-lg appearance-none cursor-pointer bg-gray-700"
+        >
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="container mx-auto px-4 py-6">
+
+    <!-- Upload Modal (Hidden by default) -->
+    <div id="uploadModal" class="fixed inset-0 bg-black bg-opacity-75 z-50 hidden flex items-center justify-center p-4">
+      <div class="bg-dark rounded-lg max-w-md w-full p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-xl font-bold">Upload Sound</h2>
+          <button id="closeModalBtn" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+        </div>
+
+        <div class="space-y-4">
+          <!-- Category Selection -->
+          <div>
+            <label class="block text-sm font-medium text-gray-300 mb-2">Category</label>
+            <div class="grid grid-cols-3 gap-2">
+              <button class="category-btn px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition" data-category="sfx">
+                🔊 SFX
+              </button>
+              <button class="category-btn px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition" data-category="music">
+                🎵 Music
+              </button>
+              <button class="category-btn px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition" data-category="ambience">
+                🌊 Ambience
+              </button>
+            </div>
+          </div>
+
+          <!-- File Input -->
+          <div>
+            <label class="block text-sm font-medium text-gray-300 mb-2">Audio File</label>
+            <input
+              type="file"
+              id="fileInput"
+              accept="audio/*"
+              class="block w-full text-sm text-gray-400
+                file:mr-4 file:py-2 file:px-4
+                file:rounded-lg file:border-0
+                file:text-sm file:font-semibold
+                file:bg-primary file:text-white
+                hover:file:bg-purple-700
+                file:cursor-pointer cursor-pointer"
+            >
+          </div>
+
+          <!-- Name Input -->
+          <div>
+            <label class="block text-sm font-medium text-gray-300 mb-2">Name (optional)</label>
+            <input
+              type="text"
+              id="nameInput"
+              placeholder="Auto-generated from filename"
+              class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+          </div>
+
+          <!-- Emoji Input -->
+          <div>
+            <label class="block text-sm font-medium text-gray-300 mb-2">Emoji (optional)</label>
+            <input
+              type="text"
+              id="emojiInput"
+              placeholder="🔊"
+              maxlength="2"
+              class="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+          </div>
+
+          <!-- Upload Button -->
+          <button id="confirmUploadBtn" class="w-full px-4 py-3 bg-primary hover:bg-purple-700 rounded-lg font-medium transition">
+            Upload Sound
+          </button>
+
+          <!-- Upload Progress -->
+          <div id="uploadProgress" class="hidden">
+            <div class="text-sm text-gray-300 mb-2">Uploading...</div>
+            <div class="w-full bg-gray-700 rounded-full h-2">
+              <div id="uploadProgressBar" class="bg-primary h-2 rounded-full transition-all" style="width: 0%"></div>
+            </div>
+          </div>
+
+          <!-- Error Message -->
+          <div id="uploadError" class="hidden text-red-400 text-sm"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Empty State -->
+    <div id="emptyState" class="text-center py-16">
+      <div class="text-6xl mb-4">🎵</div>
+      <h2 class="text-2xl font-bold mb-2">No sounds yet!</h2>
+      <p class="text-gray-400 mb-6">Upload your first sound to get started.</p>
+      <button class="px-6 py-3 bg-primary hover:bg-purple-700 rounded-lg font-medium transition" onclick="document.getElementById('uploadBtn').click()">
+        ⬆️ Upload Sound
+      </button>
+    </div>
+
+    <!-- Sound Effects Section -->
+    <div id="sfxSection" class="mb-8 hidden">
+      <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+        <span>🔊</span>
+        <span>Sound Effects</span>
+        <span id="sfxCount" class="text-sm text-gray-400 font-normal">(0)</span>
+      </h2>
+      <div id="sfxGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+        <!-- Sound cards will be inserted here -->
+      </div>
+    </div>
+
+    <!-- Background Music Section -->
+    <div id="musicSection" class="mb-8 hidden">
+      <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+        <span>🎵</span>
+        <span>Background Music</span>
+        <span id="musicCount" class="text-sm text-gray-400 font-normal">(0)</span>
+      </h2>
+      <div id="musicGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+        <!-- Sound cards will be inserted here -->
+      </div>
+    </div>
+
+    <!-- Ambience Section -->
+    <div id="ambienceSection" class="mb-8 hidden">
+      <h2 class="text-xl font-bold mb-4 flex items-center gap-2">
+        <span>🌊</span>
+        <span>Ambience</span>
+        <span id="ambienceCount" class="text-sm text-gray-400 font-normal">(0)</span>
+      </h2>
+      <div id="ambienceGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+        <!-- Sound cards will be inserted here -->
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Hidden file input for drag & drop future feature -->
+  <input type="file" id="hiddenFileInput" accept="audio/*" class="hidden">
+
+  <!-- Scripts (ES6 Modules) -->
+  <script type="module" src="js/main.js"></script>
+
+</body>
+</html>

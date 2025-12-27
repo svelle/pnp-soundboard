@@ -231,7 +231,9 @@ docker-compose down
 
 # Update soundboard
 git pull
-docker-compose up -d --build
+docker-compose up -d --build --no-cache
+# OR
+make deploy
 ```
 
 ### Manual Backup/Restore

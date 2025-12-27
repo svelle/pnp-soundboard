@@ -25,7 +25,7 @@ help:
 
 # Build Docker images
 build:
-	docker-compose build
+	docker-compose build --no-cache
 
 # Start services
 up:

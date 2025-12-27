@@ -4,6 +4,7 @@ import { UploadManager } from './UploadManager.js';
 import { VolumeControls } from './VolumeControls.js';
 import { SoundBoard } from './SoundBoard.js';
 import { ProjectManager } from './ProjectManager.js';
+import { RenameManager } from './RenameManager.js';
 
 export class UIController {
   constructor(audioMixer, audioManager, soundLibrary, mode = 'local') {
@@ -32,6 +33,14 @@ export class UIController {
       this.mode,
       this.projectManager
     );
+
+    this.renameManager = new RenameManager(
+      this.soundLibrary,
+      (soundId, newName) => this.handleRenameComplete(soundId, newName)
+    );
+
+    // Wire up rename manager to sound board
+    this.soundBoard.setRenameManager(this.renameManager);
   }
 
   /**
@@ -75,6 +84,16 @@ export class UIController {
     // Reload sounds to reflect the new upload
     const currentProjectId = this.projectManager.getCurrentProjectId();
     await this.soundBoard.loadSounds(currentProjectId);
+  }
+
+  /**
+   * Handle rename complete
+   * @param {string} soundId - Sound ID
+   * @param {string} newName - New sound name
+   */
+  handleRenameComplete(soundId, newName) {
+    // Update the sound name in the UI
+    this.soundBoard.updateSoundName(soundId, newName);
   }
 
   /**

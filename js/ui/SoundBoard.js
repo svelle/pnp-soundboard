@@ -160,6 +160,12 @@ export class SoundBoard {
     pauseBtn.innerHTML = '⏸️';
     pauseBtn.title = 'Random pauses between loops';
 
+    // Rename button
+    const renameBtn = document.createElement('button');
+    renameBtn.className = 'btn btn-secondary rename-btn';
+    renameBtn.innerHTML = '✏️';
+    renameBtn.title = 'Rename';
+
     // Delete button
     const deleteBtn = document.createElement('button');
     deleteBtn.className = 'btn btn-danger delete-btn';
@@ -173,6 +179,7 @@ export class SoundBoard {
       buttons.appendChild(loopBtn);
       buttons.appendChild(pauseBtn);
     }
+    buttons.appendChild(renameBtn);
     buttons.appendChild(deleteBtn);
 
     controls.appendChild(buttons);
@@ -353,6 +360,11 @@ export class SoundBoard {
         card.pauseMaxInput.addEventListener('input', (e) => e.stopPropagation());
       }
     }
+
+    renameBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.renameSound(sound.id, sound.name);
+    });
 
     deleteBtn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -674,6 +686,42 @@ export class SoundBoard {
       console.error('Error deleting sound:', error);
       alert('Failed to delete sound. Please try again.');
     }
+  }
+
+  /**
+   * Rename a sound (triggers the rename modal)
+   * @param {string} soundId - Sound ID
+   * @param {string} currentName - Current sound name
+   */
+  renameSound(soundId, currentName) {
+    // This will be called by RenameManager
+    if (this.renameManager) {
+      this.renameManager.openModal(soundId, currentName);
+    }
+  }
+
+  /**
+   * Update sound name in the UI
+   * @param {string} soundId - Sound ID
+   * @param {string} newName - New sound name
+   */
+  updateSoundName(soundId, newName) {
+    const card = document.querySelector(`[data-sound-id="${soundId}"]`);
+    if (card) {
+      const nameElement = card.querySelector('.sound-name');
+      if (nameElement) {
+        nameElement.textContent = newName;
+        nameElement.title = newName;
+      }
+    }
+  }
+
+  /**
+   * Set rename manager
+   * @param {RenameManager} renameManager - Rename manager instance
+   */
+  setRenameManager(renameManager) {
+    this.renameManager = renameManager;
   }
 
   /**

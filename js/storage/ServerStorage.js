@@ -241,10 +241,31 @@ export class ServerStorage {
   }
 
   /**
-   * Update sound metadata (not supported in server mode currently)
+   * Update sound metadata
+   * @param {string} id - Sound ID
+   * @param {Object} updates - Fields to update (e.g., {name: "New Name"})
+   * @returns {Promise<Object>} Updated sound metadata
    */
   async updateSound(id, updates) {
-    throw new Error('Update not supported in server mode');
+    try {
+      const response = await fetch(`${this.baseUrl}/api/sounds/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(updates)
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update sound');
+      }
+
+      const soundMeta = await response.json();
+      return soundMeta;
+    } catch (error) {
+      console.error('Error updating sound:', error);
+      throw error;
+    }
   }
 
   /**

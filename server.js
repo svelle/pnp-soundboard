@@ -309,6 +309,34 @@ app.delete('/api/sounds/:id', async (req, res) => {
   }
 });
 
+// Update sound metadata
+app.put('/api/sounds/:id', async (req, res) => {
+  try {
+    const { name, emoji } = req.body;
+    const metadata = await loadMetadata();
+    const sound = metadata.sounds.find(s => s.id === req.params.id);
+
+    if (!sound) {
+      return res.status(404).json({ error: 'Sound not found' });
+    }
+
+    // Update fields
+    if (name !== undefined) {
+      sound.name = name.trim();
+    }
+    if (emoji !== undefined) {
+      sound.emoji = emoji;
+    }
+
+    await saveMetadata(metadata);
+
+    res.json(sound);
+  } catch (error) {
+    console.error('Error updating sound:', error);
+    res.status(500).json({ error: 'Failed to update sound' });
+  }
+});
+
 // ==================== PROJECT ENDPOINTS ====================
 
 // Get all projects (no auth required for reading)

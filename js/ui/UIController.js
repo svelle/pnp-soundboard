@@ -5,6 +5,7 @@ import { VolumeControls } from './VolumeControls.js';
 import { SoundBoard } from './SoundBoard.js';
 import { ProjectManager } from './ProjectManager.js';
 import { RenameManager } from './RenameManager.js';
+import { ProjectAssignmentManager } from './ProjectAssignmentManager.js';
 
 export class UIController {
   constructor(audioMixer, audioManager, soundLibrary, mode = 'local') {
@@ -39,8 +40,14 @@ export class UIController {
       (soundId, newName) => this.handleRenameComplete(soundId, newName)
     );
 
-    // Wire up rename manager to sound board
+    this.projectAssignmentManager = new ProjectAssignmentManager(
+      this.soundLibrary,
+      (soundId) => this.handleProjectAssignmentComplete(soundId)
+    );
+
+    // Wire up managers to sound board
     this.soundBoard.setRenameManager(this.renameManager);
+    this.soundBoard.setProjectAssignmentManager(this.projectAssignmentManager);
   }
 
   /**
@@ -94,6 +101,20 @@ export class UIController {
   handleRenameComplete(soundId, newName) {
     // Update the sound name in the UI
     this.soundBoard.updateSoundName(soundId, newName);
+  }
+
+  /**
+   * Handle project assignment complete
+   * @param {string} soundId - Sound ID
+   */
+  async handleProjectAssignmentComplete(soundId) {
+    // If we're viewing a specific project (not "All Projects"),
+    // reload to reflect changes
+    const currentProjectId = this.projectManager.getCurrentProjectId();
+    if (currentProjectId !== 'ALL_PROJECTS') {
+      // Reload sounds for current project
+      await this.soundBoard.loadSounds(currentProjectId);
+    }
   }
 
   /**

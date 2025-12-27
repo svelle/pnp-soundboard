@@ -166,6 +166,12 @@ export class SoundBoard {
     renameBtn.innerHTML = '✏️';
     renameBtn.title = 'Rename';
 
+    // Projects button
+    const projectsBtn = document.createElement('button');
+    projectsBtn.className = 'btn btn-secondary projects-btn';
+    projectsBtn.innerHTML = '📁';
+    projectsBtn.title = 'Assign to Projects';
+
     // Delete button
     const deleteBtn = document.createElement('button');
     deleteBtn.className = 'btn btn-danger delete-btn';
@@ -180,6 +186,7 @@ export class SoundBoard {
       buttons.appendChild(pauseBtn);
     }
     buttons.appendChild(renameBtn);
+    buttons.appendChild(projectsBtn);
     buttons.appendChild(deleteBtn);
 
     controls.appendChild(buttons);
@@ -366,6 +373,11 @@ export class SoundBoard {
       this.renameSound(sound.id, sound.name);
     });
 
+    projectsBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.assignProjects(sound.id, sound.name);
+    });
+
     deleteBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       this.deleteSound(sound.id, card);
@@ -459,6 +471,19 @@ export class SoundBoard {
         // Show stop all button
         this.stopAllBtn.classList.remove('hidden');
 
+        // Get sound to set duration and handle progress/cleanup
+        const sound = await this.soundLibrary.getSound(soundId);
+        const duration = sound.duration || 60; // Default to 60s if duration unknown
+
+        // Update card duration if not set
+        if (!card.soundDuration && duration) {
+          card.soundDuration = duration;
+          // Update progress label with correct duration
+          if (card.progressTimeLabel) {
+            card.progressTimeLabel.textContent = `0:00 / ${formatDuration(duration)}`;
+          }
+        }
+
         // Start progress tracking for music/ambience
         if (card.progressBarFill && card.soundDuration) {
           this.startProgressTracking(soundId, card);
@@ -466,9 +491,6 @@ export class SoundBoard {
 
         // Setup track ended callback (for non-looping)
         if (!shouldLoop) {
-          // Get sound to determine duration for cleanup
-          const sound = await this.soundLibrary.getSound(soundId);
-          const duration = sound.duration || 60; // Default to 60s if duration unknown
 
           // Auto-update UI when track ends
           setTimeout(() => {
@@ -701,6 +723,17 @@ export class SoundBoard {
   }
 
   /**
+   * Assign sound to projects (triggers the project assignment modal)
+   * @param {string} soundId - Sound ID
+   * @param {string} soundName - Sound name
+   */
+  assignProjects(soundId, soundName) {
+    if (this.projectAssignmentManager) {
+      this.projectAssignmentManager.openModal(soundId, soundName);
+    }
+  }
+
+  /**
    * Update sound name in the UI
    * @param {string} soundId - Sound ID
    * @param {string} newName - New sound name
@@ -722,6 +755,14 @@ export class SoundBoard {
    */
   setRenameManager(renameManager) {
     this.renameManager = renameManager;
+  }
+
+  /**
+   * Set project assignment manager
+   * @param {ProjectAssignmentManager} projectAssignmentManager - Project assignment manager instance
+   */
+  setProjectAssignmentManager(projectAssignmentManager) {
+    this.projectAssignmentManager = projectAssignmentManager;
   }
 
   /**

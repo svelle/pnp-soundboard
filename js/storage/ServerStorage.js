@@ -7,6 +7,7 @@ export class ServerStorage {
     this.audioContext = audioContext;
     this.baseUrl = window.location.origin;
     this.loadingCache = new Map(); // Track loading sounds
+    this.soundCache = new Map(); // Cache for preloaded sounds
   }
 
   /**
@@ -47,6 +48,11 @@ export class ServerStorage {
    */
   async getSound(id, onProgress = null) {
     try {
+      // Check if already cached (preloaded)
+      if (this.soundCache.has(id)) {
+        return this.soundCache.get(id);
+      }
+
       // Check if already loading
       if (this.loadingCache.has(id)) {
         return await this.loadingCache.get(id);
@@ -58,6 +64,9 @@ export class ServerStorage {
 
       const result = await loadingPromise;
       this.loadingCache.delete(id);
+
+      // Cache the loaded sound
+      this.soundCache.set(id, result);
 
       return result;
     } catch (error) {
